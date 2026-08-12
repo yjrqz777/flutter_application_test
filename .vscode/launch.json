@@ -1,0 +1,13 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Flutter Android",
+      "request": "launch",
+      "type": "dart",
+      "args": [
+        "--host-vmservice-port=50000"
+      ]
+    }
+  ]
+}
