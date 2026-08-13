@@ -12,20 +12,26 @@ class AppTheme {
   static ThemeData get light => ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: _seedColor),
         textTheme: _textTheme,
-        appBarTheme: const AppBarTheme(
-          toolbarHeight: 80, // 顶部栏高度
-          // 圆角造型（上下各 20）
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.vertical(
-              top: Radius.circular(20),
-              bottom: Radius.circular(20),
-            ),
-          ),
-        ),
+        appBarTheme: _appBarTheme,
       );
 
-  /// 暗色主题
-  static ThemeData get dark => ThemeData.dark();
+  /// 暗色主题（沿用相同的文字样式与顶部栏造型，仅背景变暗）
+  static ThemeData get dark => ThemeData.dark().copyWith(
+        textTheme: _textTheme,
+        appBarTheme: _appBarTheme,
+      );
+
+  /// 顶部栏造型（亮/暗共用）
+  static const AppBarTheme _appBarTheme = AppBarTheme(
+    toolbarHeight: 80, // 顶部栏高度
+    // 圆角造型（上下各 20）
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(
+        top: Radius.circular(20),
+        bottom: Radius.circular(20),
+      ),
+    ),
+  );
 
   /// 统一的文字样式表
   static const TextTheme _textTheme = TextTheme(
