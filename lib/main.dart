@@ -14,17 +14,23 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  // 当前主题模式（初始为跟随系统）
-  ThemeMode _themeMode = ThemeMode.system;
+  // 当前主题模式（初始为亮色）
+  ThemeMode _themeMode = ThemeMode.light;
 
   // 切换主题：三态循环（系统 -> 亮色 -> 暗色 -> 系统）
   void _toggleThemeMode() {
     setState(() {
-      _themeMode = switch (_themeMode) {
-        ThemeMode.system => ThemeMode.light,
-        ThemeMode.light => ThemeMode.dark,
-        ThemeMode.dark => ThemeMode.system,
-      };
+      // _themeMode = switch (_themeMode) {
+      //   ThemeMode.system => ThemeMode.light,
+      //   ThemeMode.light => ThemeMode.dark,
+      //   ThemeMode.dark => ThemeMode.light,
+      // };
+      if (_themeMode == ThemeMode.light) {
+        _themeMode = ThemeMode.dark;
+      } else {
+        _themeMode = ThemeMode.light;
+      }
+
     });
   }
 
@@ -79,6 +85,7 @@ class _MyHomePageState extends State<MyHomePage> {
     debugPrint(_counter.toString());
   }
 
+
   @override
   Widget build(BuildContext context) {
     // This method is rerun every time setState is called, for instance as done
@@ -96,6 +103,15 @@ class _MyHomePageState extends State<MyHomePage> {
         onPressed: () {},
         ),
         actions: [
+          IconButton(
+            // 切换主题：当前主题决定图标显示成“太阳”还是“月亮”
+            icon: Icon(
+              Theme.of(context).brightness == Brightness.dark
+                  ? Icons.light_mode
+                  : Icons.dark_mode,
+            ),
+            onPressed: (){widget.onToggleTheme(); debugPrint('切换主题');},
+          ),
           IconButton(
             icon: const Icon(Icons.music_note_sharp),
             onPressed: () {},
