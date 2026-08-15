@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 
 import '../sensors/gyroscope_service.dart';
+import '../sensors/orientation_service.dart';
 
 /// 主页面：负责计数器 + 陀螺仪数据的展示。
 class HomePage extends StatefulWidget {
@@ -31,6 +32,11 @@ class _HomePageState extends State<HomePage> {
   double _gz = 0;
   bool _gyroActive = false;
 
+  // 姿态角（由 Mahony 互补滤波算出）
+  final OrientationService _orientation = OrientationService();
+  StreamSubscription<OrientationAngles>? _orientSub;
+  OrientationAngles? _angles;
+
   @override
   void initState() {
     super.initState();
@@ -44,12 +50,20 @@ class _HomePageState extends State<HomePage> {
         _gyroActive = true;
       });
     });
+
+    _orientation.start();
+    _orientSub = _orientation.events.listen((angles) {
+      if (!mounted) return;
+      setState(() => _angles = angles);
+    });
   }
 
   @override
   void dispose() {
     _gyroSub?.cancel(); // 先取消界面订阅
     _gyroscope.dispose(); // 再释放服务资源
+    _orientSub?.cancel();
+    _orientation.dispose();
     super.dispose();
   }
 
@@ -104,17 +118,32 @@ class _HomePageState extends State<HomePage> {
               style: Theme.of(context).textTheme.headlineMedium,
             ),
             const SizedBox(height: 24),
-            // 陀螺仪数据展示
+            // 姿态角展示（Mahony 互补滤波融合陀螺仪/加速度计/磁力计）
             Text(
-              _gyroActive ? '陀螺仪 x/y/z' : '等待陀螺仪数据…',
+              _angles != null ? '姿态角 roll / pitch / yaw' : '正在校准姿态角…',
               style: Theme.of(context).textTheme.titleLarge,
+            ),
+            Text(
+              _angles == null
+                  ? '请保持手机静止几秒以初始化'
+                  : 'roll  ${_angles!.roll.toStringAsFixed(1)}°\n'
+                      'pitch ${_angles!.pitch.toStringAsFixed(1)}°\n'
+                      'yaw   ${_angles!.yaw.toStringAsFixed(1)}°',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 24),
+            // 陀螺仪原始数据展示（对比用）
+            Text(
+              _gyroActive ? '陀螺仪角速度 x/y/z (rad/s)' : '等待陀螺仪数据…',
+              style: Theme.of(context).textTheme.titleMedium,
             ),
             Text(
               'x: ${_gx.toStringAsFixed(2)}\n'
               'y: ${_gy.toStringAsFixed(2)}\n'
               'z: ${_gz.toStringAsFixed(2)}',
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleLarge,
+              style: Theme.of(context).textTheme.titleMedium,
             ),
           ],
         ),

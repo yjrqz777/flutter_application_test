@@ -37,7 +37,7 @@ class _MyAppState extends State<MyApp> {
       darkTheme: AppTheme.dark,
       themeMode: _themeMode,
       home: HomePage(
-        title: 'Flutter Demo Home Page',
+        title: 'Flutter',
         onToggleTheme: _toggleThemeMode,
       ),
       debugShowCheckedModeBanner: false, // 是否显示右上角 DEBUG 横幅
