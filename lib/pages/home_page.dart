@@ -132,6 +132,14 @@ class _HomePageState extends State<HomePage> {
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.titleLarge,
             ),
+            const SizedBox(height: 8),
+            // 磁力计状态：yaw 有没有绝对参考，直接决定它会不会漂移
+            Text(
+              _orientation.hasMagnetometer
+                  ? '磁力计：正常（yaw 有参考）'
+                  : '磁力计：无数据（yaw 会漂移）',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
             const SizedBox(height: 24),
             // 陀螺仪原始数据展示（对比用）
             Text(

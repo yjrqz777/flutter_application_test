@@ -11,9 +11,9 @@ class OrientationAngles {
     required this.yaw,
   });
 
-  final double roll; // 绕 X 轴：手机左右倾斜（横屏/竖屏翻转）
-  final double pitch; // 绕 Y 轴：手机前后倾斜（低头/抬头）
-  final double yaw; // 绕 Z 轴：手机水平朝向（东南西北）
+  final double roll; // 横滚角：绕手机 Y 轴（上下轴）旋转，左右倾斜
+  final double pitch; // 俯仰角：绕手机 X 轴（左右轴）旋转，前后倾斜
+  final double yaw; // 航向角：绕世界竖直轴（重力轴）旋转，即朝向（东南西北）
 }
 
 /// 姿态估算服务。
@@ -38,6 +38,10 @@ class OrientationService {
   /// 对外事件流：每收到一帧陀螺仪数据，输出一次融合后的姿态角。
   Stream<OrientationAngles> get events => _controller.stream;
 
+  /// 磁力计是否已拿到数据。yaw 的唯一绝对参考：没有它，yaw 只能靠陀螺仪积分，
+  /// 积分误差会让 yaw 持续漂移（这是传感器物理限制，不是滤波算法能解决的）。
+  bool get hasMagnetometer => _hasMag;
+
   // ---------- Mahony 滤波内部状态 ----------
   // 姿态用四元数 (q0,q1,q2,q3) 表示，可避免欧拉角的万向锁问题。
   double _q0 = 1, _q1 = 0, _q2 = 0, _q3 = 0;
@@ -50,7 +54,8 @@ class OrientationService {
   bool _hasMag = false;
 
   static const double _kp = 2.0; // 比例增益：越大越快速追平参考，越小越平滑
-  static const double _ki = 0.0; // 积分增益（这里用 0，避免磁力计噪声累积）
+  static const double _ki = 0.05; // 积分增益：估计陀螺仪零偏，抵消 yaw 漂移
+  static const double _kiMax = 0.3; // 积分项限幅（rad/s），防止快速运动时积分饱和
 
   void start() {
     _gyroSub ??= gyroscopeEventStream().listen(_onGyro);
@@ -161,10 +166,10 @@ class OrientationService {
     ey = (az * vx - ax * vz) + (mz * wx - mx * wz);
     ez = (ax * vy - ay * vx) + (mx * wy - my * wx);
 
-    // 误差积分项
-    _exInt += ex * _ki;
-    _eyInt += ey * _ki;
-    _ezInt += ez * _ki;
+    // 误差积分项：真正的积分要乘 dt，并限幅防止快速运动时积分饱和
+    _exInt = math.max(-_kiMax, math.min(_kiMax, _exInt + ex * _ki * dt));
+    _eyInt = math.max(-_kiMax, math.min(_kiMax, _eyInt + ey * _ki * dt));
+    _ezInt = math.max(-_kiMax, math.min(_kiMax, _ezInt + ez * _ki * dt));
 
     // 用误差修正角速度（这是“把漂移拉回来”的关键）
     gx += _kp * ex + _exInt;
@@ -172,11 +177,13 @@ class OrientationService {
     gz += _kp * ez + _ezInt;
 
     // 四元数积分（一阶欧拉法）
+    // 注意：必须用【更新前】的旧值同时计算，不能先改 _q0 再让后面行用到新 _q0。
     final dq = 0.5 * dt;
-    _q0 += (-_q1 * gx - _q2 * gy - _q3 * gz) * dq;
-    _q1 += (_q0 * gx + _q2 * gz - _q3 * gy) * dq;
-    _q2 += (_q0 * gy - _q1 * gz + _q3 * gx) * dq;
-    _q3 += (_q0 * gz + _q1 * gy - _q2 * gx) * dq;
+    final q0 = _q0, q1 = _q1, q2 = _q2, q3 = _q3;
+    _q0 += (-q1 * gx - q2 * gy - q3 * gz) * dq;
+    _q1 += (q0 * gx + q2 * gz - q3 * gy) * dq;
+    _q2 += (q0 * gy - q1 * gz + q3 * gx) * dq;
+    _q3 += (q0 * gz + q1 * gy - q2 * gx) * dq;
 
     // 归一化四元数，保持单位长度
     norm = math.sqrt(_q0 * _q0 + _q1 * _q1 + _q2 * _q2 + _q3 * _q3);
@@ -189,13 +196,28 @@ class OrientationService {
   }
 
   /// 四元数 -> 欧拉角（度）。
+  ///
+  /// 约定对齐 Android `SensorManager.getOrientation` 的手机姿态习惯：
+  ///   - yaw   = 航向角：绕【世界竖直轴】（重力轴）旋转，手机倾斜时不会跟着变；
+  ///   - pitch = 俯仰角：绕手机 X 轴（左右轴）旋转，前后倾斜；
+  ///   - roll  = 横滚角：绕手机 Y 轴（上下轴）旋转，左右倾斜。
+  ///
+  /// 关键点：yaw 用「世界坐标系」的航向，而不是机身 Z 轴的欧拉角。
+  /// 机身 Z 轴会随倾斜改变方向，所以旧写法在改 roll/pitch 时 yaw 会被带动。
   OrientationAngles _toAngles() {
-    final roll = math.atan2(2 * (_q0 * _q1 + _q2 * _q3),
-        1 - 2 * (_q1 * _q1 + _q2 * _q2));
-    final pitch = math.asin(
-        math.max(-1, math.min(1, 2 * (_q0 * _q2 - _q3 * _q1))));
-    final yaw = math.atan2(
-        2 * (_q0 * _q3 + _q1 * _q2), 1 - 2 * (_q2 * _q2 + _q3 * _q3));
+    final q0 = _q0, q1 = _q1, q2 = _q2, q3 = _q3;
+
+    // 旋转矩阵（机身 -> 世界）中用到的元素。
+    final r01 = 2 * (q1 * q2 - q0 * q3);
+    final r11 = 1 - 2 * (q1 * q1 + q3 * q3);
+    final r20 = 2 * (q1 * q3 - q0 * q2);
+    final r21 = 2 * (q2 * q3 + q0 * q1);
+    final r22 = 1 - 2 * (q1 * q1 + q2 * q2);
+
+    final yaw = math.atan2(r01, r11); // 航向：世界竖直轴（倾斜不变）
+    final pitch = math.asin(math.max(-1, math.min(1, -r21))); // 绕 X 轴
+    final roll = math.atan2(-r20, r22); // 绕 Y 轴
+
     const deg = 180.0 / math.pi;
     return OrientationAngles(
       roll: roll * deg,
