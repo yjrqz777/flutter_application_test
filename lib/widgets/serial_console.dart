@@ -1,26 +1,39 @@
 import 'package:flutter/material.dart';
 
 import '../bluetooth/serial_message.dart';
+import '../bluetooth/serial_view_settings.dart';
 
-/// 串口控制台：收发记录 + HEX 开关 + 输入栏。
+/// 串口控制台：收发记录 + 可开关的显示模块 + HEX 发送开关 + 输入栏。
 ///
-/// 经典蓝牙和 BLE 两个页面共用，收发数据和输入解析都交给外层的服务处理，
-/// 这里只负责显示和收集输入。
+/// 经典蓝牙和 BLE 两个页面共用；显示哪些模块由 [SerialViewSettings] 决定，
+/// 收发数据和输入解析都交给外层的服务处理，这里只负责显示和收集输入。
 class SerialConsole extends StatefulWidget {
   const SerialConsole({
     super.key,
     required this.messages,
     required this.canSend,
+    required this.settings,
     required this.onSend,
     required this.onClear,
+    this.txBytes = 0,
+    this.rxBytes = 0,
   });
 
   final List<SerialMessage> messages;
   final bool canSend;
 
+  /// 显示配置（模式、时间戳、字节计数等开关）
+  final SerialViewSettings settings;
+
   /// 第二个参数表示是否按 HEX 发送
   final void Function(String text, bool hexMode) onSend;
   final VoidCallback onClear;
+
+  /// 累计发送字节数
+  final int txBytes;
+
+  /// 累计接收字节数
+  final int rxBytes;
 
   @override
   State<SerialConsole> createState() => _SerialConsoleState();
@@ -38,48 +51,99 @@ class _SerialConsoleState extends State<SerialConsole> {
     super.dispose();
   }
 
-  void _send() {
-    final String text = _controller.text;
-    if (text.isEmpty) return;
-    widget.onSend(text, _hexMode);
-    _controller.clear();
-    _focusNode.requestFocus();
+  void _send([String? text]) {
+    final String value = text ?? _controller.text;
+    if (value.isEmpty) return;
+    widget.onSend(value, _hexMode);
+    if (text == null) {
+      _controller.clear();
+      _focusNode.requestFocus();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: <Widget>[
-        _buildToolbar(context),
-        const Divider(height: 1),
-        Expanded(child: _buildMessageList(context)),
-        const Divider(height: 1),
-        _buildInputBar(context),
-      ],
+    return ListenableBuilder(
+      listenable: widget.settings,
+      builder: (BuildContext context, Widget? child) {
+        return Column(
+          children: <Widget>[
+            _buildToolbar(context),
+            const Divider(height: 1),
+            Expanded(child: _buildMessageList(context)),
+            if (widget.settings.showQuickCommands) _buildQuickCommands(context),
+            const Divider(height: 1),
+            _buildInputBar(context),
+          ],
+        );
+      },
     );
   }
 
   Widget _buildToolbar(BuildContext context) {
     final ThemeData theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 4, 4, 4),
-      child: Row(
-        children: <Widget>[
-          Text('收发记录', style: theme.textTheme.labelLarge),
-          const SizedBox(width: 8),
-          Text('${widget.messages.length} 条', style: theme.textTheme.bodySmall),
-          const Spacer(),
-          Text('HEX', style: theme.textTheme.bodySmall),
-          Switch(
-            value: _hexMode,
-            onChanged: (bool value) => setState(() => _hexMode = value),
+    return Column(
+      children: <Widget>[
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 4, 4, 4),
+          child: Row(
+            children: <Widget>[
+              Text('收发记录', style: theme.textTheme.labelLarge),
+              const SizedBox(width: 8),
+              Text(
+                '${widget.messages.length} 条',
+                style: theme.textTheme.bodySmall,
+              ),
+              const Spacer(),
+              Text('HEX', style: theme.textTheme.bodySmall),
+              Switch(
+                value: _hexMode,
+                onChanged: (bool value) => setState(() => _hexMode = value),
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete_outline),
+                tooltip: '清空记录',
+                onPressed: widget.onClear,
+              ),
+            ],
           ),
-          IconButton(
-            icon: const Icon(Icons.delete_outline),
-            tooltip: '清空记录',
-            onPressed: widget.onClear,
+        ),
+        if (widget.settings.showByteCount)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                '发送 ${widget.txBytes} 字节 · 接收 ${widget.rxBytes} 字节',
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: theme.colorScheme.primary),
+              ),
+            ),
           ),
-        ],
+      ],
+    );
+  }
+
+  /// 自定义模式下的快捷指令栏：点一下按文本发出去
+  Widget _buildQuickCommands(BuildContext context) {
+    final List<String> commands = widget.settings.quickCommands;
+    if (commands.isEmpty) return const SizedBox.shrink();
+
+    return SizedBox(
+      height: 48,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        itemCount: commands.length,
+        separatorBuilder: (BuildContext context, int index) =>
+            const SizedBox(width: 8),
+        itemBuilder: (BuildContext context, int index) {
+          final String command = commands[index];
+          return ActionChip(
+            label: Text(command),
+            onPressed: widget.canSend ? () => _send(command) : null,
+          );
+        },
       ),
     );
   }
@@ -99,7 +163,7 @@ class _SerialConsoleState extends State<SerialConsole> {
       itemBuilder: (BuildContext context, int index) {
         final SerialMessage message =
             widget.messages[widget.messages.length - 1 - index];
-        return _MessageRow(message: message);
+        return _MessageRow(message: message, settings: widget.settings);
       },
     );
   }
@@ -143,11 +207,12 @@ class _SerialConsoleState extends State<SerialConsole> {
   }
 }
 
-/// 单条记录：方向 + 时间 + 内容
+/// 单条记录：方向、时间、内容，按配置决定显示哪些
 class _MessageRow extends StatelessWidget {
-  const _MessageRow({required this.message, super.key});
+  const _MessageRow({required this.message, required this.settings, super.key});
 
   final SerialMessage message;
+  final SerialViewSettings settings;
 
   @override
   Widget build(BuildContext context) {
@@ -163,36 +228,43 @@ class _MessageRow extends StatelessWidget {
       SerialDirection.system => theme.colorScheme.outline,
     };
 
+    // HEX 视图只影响真实收发的内容，系统提示照旧显示文字
+    final String content =
+        settings.showHexView && message.hex.isNotEmpty ? message.hex : message.body;
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Container(
-            width: 36,
-            padding: const EdgeInsets.symmetric(vertical: 1),
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(4),
+          if (settings.showDirection) ...<Widget>[
+            Container(
+              width: 36,
+              padding: const EdgeInsets.symmetric(vertical: 1),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: color,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                label,
+                style: const TextStyle(fontSize: 11, color: Colors.white),
+              ),
             ),
-            child: Text(
-              label,
-              style: const TextStyle(fontSize: 11, color: Colors.white),
+            const SizedBox(width: 8),
+          ],
+          if (settings.showTimestamp) ...<Widget>[
+            Text(
+              message.timeLabel,
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: theme.colorScheme.outline),
             ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            message.timeLabel,
-            style: theme.textTheme.bodySmall
-                ?.copyWith(color: theme.colorScheme.outline),
-          ),
-          const SizedBox(width: 8),
+            const SizedBox(width: 8),
+          ],
           Expanded(
             child: SelectableText(
-              message.body,
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(fontFamily: 'monospace'),
+              content,
+              style: theme.textTheme.bodySmall?.copyWith(fontFamily: 'monospace'),
             ),
           ),
         ],

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 
 import '../../bluetooth/ble_serial_service.dart';
+import '../../bluetooth/serial_view_settings.dart';
 import '../../widgets/device_list_tile.dart';
 import '../../widgets/empty_hint.dart';
 import '../../widgets/serial_action_bar.dart';
@@ -11,7 +12,10 @@ import '../../widgets/serial_console.dart';
 ///
 /// 适配 HM-10、ESP32 BLE 透传这类从机：连上以后把 GATT 特征当串口用。
 class BleSerialTab extends StatefulWidget {
-  const BleSerialTab({super.key});
+  const BleSerialTab({super.key, required this.settings});
+
+  /// 和经典蓝牙页签共用的显示配置
+  final SerialViewSettings settings;
 
   @override
   State<BleSerialTab> createState() => _BleSerialTabState();
@@ -58,6 +62,9 @@ class _BleSerialTabState extends State<BleSerialTab>
                   ? SerialConsole(
                       messages: _service.messages,
                       canSend: _service.canSend,
+                      settings: widget.settings,
+                      txBytes: _service.txBytes,
+                      rxBytes: _service.rxBytes,
                       onSend: (String text, bool hexMode) =>
                           _service.sendText(text, hexMode: hexMode),
                       onClear: _service.clearMessages,

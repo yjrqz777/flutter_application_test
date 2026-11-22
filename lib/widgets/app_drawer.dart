@@ -23,6 +23,22 @@ class AppDrawer extends StatelessWidget {
           children: <Widget>[
             const _DrawerHeader(),
             const Divider(height: 1),
+            // 功能区放上面，占满中间的剩余空间
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                children: <Widget>[
+                  _DrawerItem(
+                    icon: Icons.bluetooth,
+                    title: '蓝牙调试',
+                    subtitle: '经典蓝牙串口 / BLE 串口',
+                    onTap: () => _open(context, const BluetoothPage()),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            // 设置、关于固定贴近底部
             _DrawerItem(
               icon: Icons.settings_outlined,
               title: '设置',
@@ -36,13 +52,7 @@ class AppDrawer extends StatelessWidget {
               title: '关于',
               onTap: () => _open(context, const AboutPage()),
             ),
-            const Divider(height: 1),
-            _DrawerItem(
-              icon: Icons.bluetooth,
-              title: '蓝牙调试',
-              subtitle: '经典蓝牙串口 / BLE 串口',
-              onTap: () => _open(context, const BluetoothPage()),
-            ),
+            const SizedBox(height: 8),
           ],
         ),
       ),

@@ -5,12 +5,13 @@ enum SerialDirection { tx, rx, system }
 
 /// 控制台里的一行记录。
 ///
-/// 显示用的文本在创建时就算好（[body]），列表重建时不用反复解码。
+/// 文本形式和 HEX 形式在创建时都算好，切换「HEX 视图」时不用重新解码。
 class SerialMessage {
   const SerialMessage._({
     required this.direction,
     required this.time,
     required this.body,
+    required this.hex,
     required this.byteCount,
   });
 
@@ -19,6 +20,7 @@ class SerialMessage {
         direction: SerialDirection.tx,
         time: DateTime.now(),
         body: BytesUtils.describe(bytes),
+        hex: BytesUtils.toHex(bytes),
         byteCount: bytes.length,
       );
 
@@ -27,6 +29,7 @@ class SerialMessage {
         direction: SerialDirection.rx,
         time: DateTime.now(),
         body: BytesUtils.describe(bytes),
+        hex: BytesUtils.toHex(bytes),
         byteCount: bytes.length,
       );
 
@@ -35,14 +38,18 @@ class SerialMessage {
         direction: SerialDirection.system,
         time: DateTime.now(),
         body: text,
+        hex: '',
         byteCount: 0,
       );
 
   final SerialDirection direction;
   final DateTime time;
 
-  /// 显示内容：可打印时是文本（换行显示成 \r \n 转义），否则是 HEX。
+  /// 文本显示内容：可打印时是文本（换行显示成 \r \n 转义），否则是 HEX。
   final String body;
+
+  /// HEX 显示内容；系统提示为空串。
+  final String hex;
 
   /// 字节数，系统提示为 0。
   final int byteCount;

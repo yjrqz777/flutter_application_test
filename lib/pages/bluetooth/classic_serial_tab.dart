@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_classic_bluetooth/flutter_classic_bluetooth.dart';
 
 import '../../bluetooth/classic_serial_service.dart';
+import '../../bluetooth/serial_view_settings.dart';
 import '../../widgets/device_list_tile.dart';
 import '../../widgets/empty_hint.dart';
 import '../../widgets/serial_action_bar.dart';
@@ -11,7 +12,10 @@ import '../../widgets/serial_console.dart';
 ///
 /// 适配 HC-05 / HC-06 这类串口模块，也适配 ESP32 的经典蓝牙 BluetoothSerial。
 class ClassicSerialTab extends StatefulWidget {
-  const ClassicSerialTab({super.key});
+  const ClassicSerialTab({super.key, required this.settings});
+
+  /// 和 BLE 页签共用的显示配置
+  final SerialViewSettings settings;
 
   @override
   State<ClassicSerialTab> createState() => _ClassicSerialTabState();
@@ -59,6 +63,9 @@ class _ClassicSerialTabState extends State<ClassicSerialTab>
                   ? SerialConsole(
                       messages: _service.messages,
                       canSend: _service.canSend,
+                      settings: widget.settings,
+                      txBytes: _service.txBytes,
+                      rxBytes: _service.rxBytes,
                       onSend: (String text, bool hexMode) =>
                           _service.sendText(text, hexMode: hexMode),
                       onClear: _service.clearMessages,

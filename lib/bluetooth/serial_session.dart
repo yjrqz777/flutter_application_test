@@ -19,8 +19,18 @@ abstract class SerialSession extends ChangeNotifier {
   bool _disposed = false;
   String _status = '正在初始化…';
 
+  // 累计收发字节数（清空记录时一起归零）
+  int _txBytes = 0;
+  int _rxBytes = 0;
+
   /// 控制台记录（最新的在列表末尾）
   List<SerialMessage> get messages => List<SerialMessage>.unmodifiable(_messages);
+
+  /// 累计发送字节数
+  int get txBytes => _txBytes;
+
+  /// 累计接收字节数
+  int get rxBytes => _rxBytes;
 
   /// 是否已连接到设备
   bool get isConnected => _connected;
@@ -63,12 +73,17 @@ abstract class SerialSession extends ChangeNotifier {
 
   /// 往控制台追加一条接收记录
   @protected
-  void addRx(Uint8List bytes) => _append(SerialMessage.rx(bytes));
+  void addRx(Uint8List bytes) {
+    _rxBytes += bytes.length;
+    _append(SerialMessage.rx(bytes));
+  }
 
-  /// 清空控制台
+  /// 清空控制台，累计字节数一并归零
   void clearMessages() {
     if (_disposed) return;
     _messages.clear();
+    _txBytes = 0;
+    _rxBytes = 0;
     notifyListeners();
   }
 
@@ -92,6 +107,7 @@ abstract class SerialSession extends ChangeNotifier {
 
     try {
       await writeBytes(Uint8List.fromList(bytes));
+      _txBytes += bytes.length;
       _append(SerialMessage.tx(bytes));
     } catch (error) {
       addSystem('发送失败：$error');
