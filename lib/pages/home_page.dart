@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../app/app_info.dart';
+import '../app/circular_reveal.dart';
 import '../app/theme_controller.dart';
 import '../widgets/app_drawer.dart';
 import 'about_page.dart';
@@ -29,6 +30,9 @@ class _HomePageState extends State<HomePage>
   // 抽屉要用 ScaffoldState 打开，所以给 Scaffold 挂一个 key
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
+  // 放射菜单的舞台，用来把入口的局部坐标换算成屏幕坐标
+  final GlobalKey _menuKey = GlobalKey();
+
   /// 展开 / 收起的动画进度：0 全收，1 全开
   late final AnimationController _expand = AnimationController(
     vsync: this,
@@ -37,6 +41,9 @@ class _HomePageState extends State<HomePage>
 
   /// 入口圆心的展开半径（像素）
   static const double _radius = 96;
+
+  /// 放射菜单舞台的尺寸
+  static const Size _stageSize = Size(320, 320);
 
   /// 三个入口分布的角度（度）：正上方、右下、左下
   static const double _angleTest = -90;
@@ -57,10 +64,20 @@ class _HomePageState extends State<HomePage>
     }
   }
 
-  void _open(Widget page) {
+  /// 打开入口页：页面从被点的那个圆的位置扩散展开。
+  ///
+  /// [localOrigin] 是被点入口在放射菜单里的圆心坐标（已经算上展开位移）。
+  void _open(Widget page, Offset localOrigin) {
     _expand.reverse();
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (BuildContext context) => page),
+
+    final RenderBox? menuBox =
+        _menuKey.currentContext?.findRenderObject() as RenderBox?;
+    final Offset origin = menuBox != null && menuBox.hasSize
+        ? menuBox.localToGlobal(localOrigin)
+        : MediaQuery.sizeOf(context).center(Offset.zero);
+
+    Navigator.of(context).push<void>(
+      circularRevealRoute<void>(page: page, origin: origin),
     );
   }
 
@@ -92,8 +109,9 @@ class _HomePageState extends State<HomePage>
       ),
       body: Center(
         child: SizedBox(
-          width: 320,
-          height: 320,
+          key: _menuKey,
+          width: _stageSize.width,
+          height: _stageSize.height,
           child: Stack(
             clipBehavior: Clip.none,
             alignment: Alignment.center,
@@ -102,21 +120,19 @@ class _HomePageState extends State<HomePage>
                 icon: Icons.science_outlined,
                 label: 'test',
                 angleDegrees: _angleTest,
-                onTap: () => _open(
-                  TestPage(themeController: widget.themeController),
-                ),
+                page: TestPage(themeController: widget.themeController),
               ),
               _buildEntry(
                 icon: Icons.bluetooth,
                 label: '蓝牙调试',
                 angleDegrees: _angleBluetooth,
-                onTap: () => _open(const BluetoothPage()),
+                page: const BluetoothPage(),
               ),
               _buildEntry(
                 icon: Icons.info_outline,
                 label: '关于',
                 angleDegrees: _angleAbout,
-                onTap: () => _open(const AboutPage()),
+                page: const AboutPage(),
               ),
               _buildCenterButton(context),
             ],
@@ -150,18 +166,21 @@ class _HomePageState extends State<HomePage>
     );
   }
 
-  /// 一个放射状入口：按角度和进度算出位移
+  /// 一个放射状入口：按角度和进度算出位移，点击后以自身位置为圆心展开页面
   Widget _buildEntry({
     required IconData icon,
     required String label,
     required double angleDegrees,
-    required VoidCallback onTap,
+    required Widget page,
   }) {
     final double radians = angleDegrees * math.pi / 180;
     final Offset target = Offset(
       math.cos(radians) * _radius,
       math.sin(radians) * _radius,
     );
+    // 入口展开到位后在舞台里的圆心坐标
+    final Offset localOrigin =
+        Offset(_stageSize.width / 2, _stageSize.height / 2) + target;
 
     return AnimatedBuilder(
       animation: _expand,
@@ -179,7 +198,11 @@ class _HomePageState extends State<HomePage>
           ),
         );
       },
-      child: _EntryCircle(icon: icon, label: label, onTap: onTap),
+      child: _EntryCircle(
+        icon: icon,
+        label: label,
+        onTap: () => _open(page, localOrigin),
+      ),
     );
   }
 }
