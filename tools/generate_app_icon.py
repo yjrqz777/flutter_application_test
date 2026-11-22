@@ -1,20 +1,29 @@
 """生成「多功能调试工具」的应用图标。
 
-一次生成所有平台需要的尺寸：Android mipmap、Web 图标与 favicon、Windows ico。
-改图标只要调下面的配色和图形参数，然后重跑本脚本：
+图形取自应用内使用的 Material 图标 developer_board（U+E1C5），
+所以桌面图标和 App 里抽屉、关于页的图标是同一个。
+一次生成所有平台需要的尺寸：Android mipmap + 启动页图案、Web 图标与 favicon、Windows ico。
+
+改图标只要调下面的配色和 glyph 占比，然后重跑本脚本：
 
     python tools/generate_app_icon.py
-
-设计：绿色圆角方块 + 白色蓝牙符文，和 App 主题种子色一致。
 """
 
 from __future__ import annotations
 
 import os
+import sys
 
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# 应用图标用的字形：Material Icons 里的 developer_board
+GLYPH_CODE_POINT = 0xE1C5
+# Flutter SDK 自带的 MaterialIcons 字体（DevTools 资源里那份是完整图标字体）
+ICON_FONT_CANDIDATES = (
+    r"D:\App\flutter\flutter\bin\cache\dart-sdk\bin\resources\devtools\assets\fonts\MaterialIcons-Regular.otf",
+)
 
 # 配色：与 lib/theme.dart 里的种子色同族
 TOP_COLOR = (47, 184, 119)
@@ -22,6 +31,18 @@ BOTTOM_COLOR = (26, 124, 84)
 GLYPH_COLOR = (255, 255, 255, 255)
 
 MASTER_SIZE = 1024
+# 字形在图标里的最大占比（maskable 版本会更小，留出安全区）
+GLYPH_RATIO = 0.54
+
+
+def find_icon_font() -> str:
+    for path in ICON_FONT_CANDIDATES:
+        if os.path.exists(path):
+            return path
+    sys.exit(
+        "找不到 MaterialIcons 字体，请把路径加到 ICON_FONT_CANDIDATES：\n  "
+        + "\n  ".join(ICON_FONT_CANDIDATES)
+    )
 
 
 def vertical_gradient(width: int, height: int) -> Image.Image:
@@ -41,44 +62,32 @@ def rounded_mask(size: int, radius_ratio: float) -> Image.Image:
     return mask
 
 
-def draw_glyph(canvas: Image.Image, size: int, scale: float) -> None:
-    """在画布中央画白色蓝牙符文。scale 控制符文占比。"""
-    draw = ImageDraw.Draw(canvas)
-    glyph_height = size * 0.46 * scale
-    glyph_width = glyph_height * 0.62
-    center_x, center_y = size / 2, size / 2
-
-    def point(u: float, v: float) -> tuple[float, float]:
-        return (
-            center_x + (u - 0.5) * glyph_width,
-            center_y + (v - 0.5) * glyph_height,
-        )
-
-    top = point(0.5, 0.0)
-    upper_right = point(1.0, 0.25)
-    lower_left = point(0.0, 0.75)
-    bottom = point(0.5, 1.0)
-    lower_right = point(1.0, 0.75)
-    upper_left = point(0.0, 0.25)
-
-    strokes = (
-        [top, upper_right, lower_left],
-        [bottom, lower_right, upper_left],
-        [top, bottom],
+def render_glyph(size: int, ratio: float) -> Image.Image:
+    """把图标字形渲染成透明底、按墨迹居中裁切的图。"""
+    font = ImageFont.truetype(find_icon_font(), int(size * 0.9))
+    layer = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    ImageDraw.Draw(layer).text(
+        (size / 2, size / 2),
+        chr(GLYPH_CODE_POINT),
+        font=font,
+        fill=GLYPH_COLOR,
+        anchor="mm",
     )
-    width = max(int(size * 0.075 * scale), 2)
 
-    for stroke in strokes:
-        draw.line(stroke, fill=GLYPH_COLOR, width=width, joint="curve")
-        for x, y in stroke:
-            radius = width / 2
-            draw.ellipse(
-                [x - radius, y - radius, x + radius, y + radius],
-                fill=GLYPH_COLOR,
-            )
+    bbox = layer.getbbox()
+    if bbox is None:
+        sys.exit("字形没有渲染出任何像素，请检查字体是否包含 U+%04X" % GLYPH_CODE_POINT)
+    glyph = layer.crop(bbox)
+
+    # 缩放到目标占比：外接框最长边等于 size * ratio
+    scale = size * ratio / max(glyph.width, glyph.height)
+    return glyph.resize(
+        (max(1, round(glyph.width * scale)), max(1, round(glyph.height * scale))),
+        Image.LANCZOS,
+    )
 
 
-def render_icon(size: int, *, rounded: bool = True, glyph_scale: float = 1.0) -> Image.Image:
+def render_icon(size: int, *, rounded: bool = True, glyph_ratio: float = GLYPH_RATIO) -> Image.Image:
     canvas = Image.new("RGBA", (size, size), (0, 0, 0, 0))
     if rounded:
         background = vertical_gradient(size, size).convert("RGBA")
@@ -86,7 +95,12 @@ def render_icon(size: int, *, rounded: bool = True, glyph_scale: float = 1.0) ->
         canvas.alpha_composite(background)
     else:
         canvas.alpha_composite(vertical_gradient(size, size).convert("RGBA"))
-    draw_glyph(canvas, size, glyph_scale)
+
+    glyph = render_glyph(size, glyph_ratio)
+    canvas.alpha_composite(
+        glyph,
+        ((size - glyph.width) // 2, (size - glyph.height) // 2),
+    )
     return canvas
 
 
@@ -121,7 +135,7 @@ def main() -> None:
     # Web：普通图标保持透明圆角，maskable 版本铺满并留安全区
     save(master.resize((192, 192), Image.LANCZOS), "web/icons/Icon-192.png")
     save(master.resize((512, 512), Image.LANCZOS), "web/icons/Icon-512.png")
-    maskable = render_icon(MASTER_SIZE, rounded=False, glyph_scale=0.72)
+    maskable = render_icon(MASTER_SIZE, rounded=False, glyph_ratio=GLYPH_RATIO * 0.72)
     save(maskable.resize((192, 192), Image.LANCZOS), "web/icons/Icon-maskable-192.png")
     save(maskable.resize((512, 512), Image.LANCZOS), "web/icons/Icon-maskable-512.png")
     save(master.resize((64, 64), Image.LANCZOS), "web/favicon.png")
@@ -130,7 +144,10 @@ def main() -> None:
     ico_path = os.path.join(ROOT, "windows/runner/resources/app_icon.ico")
     sizes = [(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)]
     master.save(ico_path, format="ICO", sizes=sizes)
-    print(f"wrote windows/runner/resources/app_icon.ico ({', '.join(f'{w}x{h}' for w, h in sizes)})")
+    print(
+        "wrote windows/runner/resources/app_icon.ico "
+        f"({', '.join(f'{w}x{h}' for w, h in sizes)})"
+    )
 
 
 if __name__ == "__main__":
