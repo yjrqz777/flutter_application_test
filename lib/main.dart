@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'app/theme_controller.dart';
 import 'pages/home_page.dart';
 import 'theme.dart';
 
@@ -15,32 +16,32 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  // 当前主题模式（初始为亮色）
-  ThemeMode _themeMode = ThemeMode.light;
+  // 主题状态统一放在这里：顶部栏按钮和「设置」页都改同一个对象
+  final ThemeController _themeController = ThemeController();
 
-  // 切换主题：亮色 <-> 暗色 来回切换
-  void _toggleThemeMode() {
-    setState(() {
-      if (_themeMode == ThemeMode.light) {
-        _themeMode = ThemeMode.dark;
-      } else {
-        _themeMode = ThemeMode.light;
-      }
-    });
+  @override
+  void dispose() {
+    _themeController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: AppTheme.light,
-      darkTheme: AppTheme.dark,
-      themeMode: _themeMode,
-      home: HomePage(
-        title: 'Flutter',
-        onToggleTheme: _toggleThemeMode,
-      ),
-      debugShowCheckedModeBanner: false, // 是否显示右上角 DEBUG 横幅
+    return ListenableBuilder(
+      listenable: _themeController,
+      builder: (BuildContext context, Widget? child) {
+        return MaterialApp(
+          title: 'Flutter Demo',
+          theme: AppTheme.light,
+          darkTheme: AppTheme.dark,
+          themeMode: _themeController.mode,
+          home: HomePage(
+            title: 'Flutter',
+            themeController: _themeController,
+          ),
+          debugShowCheckedModeBanner: false, // 是否显示右上角 DEBUG 横幅
+        );
+      },
     );
   }
 }

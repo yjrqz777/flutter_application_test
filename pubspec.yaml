@@ -38,6 +38,14 @@ dependencies:
   # 读取陀螺仪/加速度计等传感器数据
   sensors_plus: ^6.1.1
 
+  # 经典蓝牙串口（RFCOMM/SPP）：HC-05 / HC-06 / ESP32 经典蓝牙等
+  flutter_classic_bluetooth: ^1.7.6
+
+  # BLE 低功耗蓝牙（GATT 透传）：HM-10 / ESP32 BLE 等
+  # 固定版本：连接接口自 2.x 起要求传 license 参数，跟着小版本升级容易改接口
+  # 注意：该插件对营利性用途要求商业授权，代码里显式声明了 License.nonprofit
+  flutter_blue_plus: 2.3.15
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

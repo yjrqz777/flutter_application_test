@@ -3,25 +3,32 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 
+import '../app/theme_controller.dart';
 import '../sensors/gyroscope_service.dart';
 import '../sensors/orientation_service.dart';
+import '../widgets/app_drawer.dart';
 
 /// 主页面：负责计数器 + 陀螺仪数据的展示。
 class HomePage extends StatefulWidget {
   const HomePage({
     super.key,
     required this.title,
-    required this.onToggleTheme,
+    required this.themeController,
   });
 
   final String title;
-  final VoidCallback onToggleTheme;
+
+  /// 主题状态：顶部栏按钮切换它，「设置」页也改它
+  final ThemeController themeController;
 
   @override
   State<HomePage> createState() => _HomePageState();
 }
 
 class _HomePageState extends State<HomePage> {
+  // 抽屉要用 ScaffoldState 打开，所以给 Scaffold 挂一个 key
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
   int _counter = 0;
 
   // 陀螺仪订阅与显示值
@@ -79,14 +86,22 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
+  /// 左上角菜单按钮：从侧面滑出抽屉
+  void _openDrawer() {
+    _scaffoldKey.currentState?.openDrawer();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: _scaffoldKey,
+      drawer: AppDrawer(themeController: widget.themeController),
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         leading: IconButton(
           icon: const Icon(Icons.menu),
-          onPressed: () {},
+          tooltip: '打开菜单',
+          onPressed: _openDrawer,
         ),
         actions: [
           IconButton(
@@ -96,7 +111,8 @@ class _HomePageState extends State<HomePage> {
                   ? Icons.light_mode
                   : Icons.dark_mode,
             ),
-            onPressed: widget.onToggleTheme,
+            tooltip: '切换主题',
+            onPressed: widget.themeController.toggle,
           ),
           IconButton(
             icon: const Icon(Icons.cleaning_services_sharp),
