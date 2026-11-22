@@ -50,14 +50,17 @@ class _CircleReveal extends StatelessWidget {
   final Widget child;
 
   /// 淡入只占整段动画前 55% 的时间
-  static final Animatable<double> _fadeInterval =
-      const Interval(0.0, 0.55, curve: Curves.easeOut);
+  ///
+  /// 注意：Interval 是 Curve（ParametricCurve），不是 Animatable，所以类型写 Curve。
+  static const Interval _fadeInterval =
+      Interval(0.0, 0.55, curve: Curves.easeOut);
 
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: animation,
-      builder: (BuildContext context, Widget? revealChild) {
+      // builder 的 child 参数是可空的，这里直接用外层非空的 child，省掉判空
+      builder: (BuildContext context, Widget? _) {
         final double progress = animation.value.clamp(0.0, 1.0);
         final Size size = MediaQuery.sizeOf(context);
         final double fullRadius = _radiusToFarthestCorner(origin, size);
@@ -70,7 +73,7 @@ class _CircleReveal extends StatelessWidget {
           clipper: _CircleClipper(center: origin, radius: fullRadius * reveal),
           child: Opacity(
             opacity: fade,
-            child: Transform.scale(scale: scale, child: revealChild),
+            child: Transform.scale(scale: scale, child: child),
           ),
         );
       },
