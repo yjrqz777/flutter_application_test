@@ -1,24 +1,20 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
-import 'package:sensors_plus/sensors_plus.dart';
 
+import '../app/app_info.dart';
 import '../app/theme_controller.dart';
-import '../sensors/gyroscope_service.dart';
-import '../sensors/orientation_service.dart';
 import '../widgets/app_drawer.dart';
+import 'about_page.dart';
+import 'bluetooth/bluetooth_page.dart';
+import 'test_page.dart';
 
-/// 主页面：负责计数器 + 陀螺仪数据的展示。
+/// 主界面：中间放几个悬浮按钮，分别进入 test、蓝牙调试、关于。
+///
+/// 左上角菜单仍然打开抽屉（设置、关于、蓝牙调试），
+/// 原来的传感器 / 计数器页面移到了 [TestPage]，从这里进入。
 class HomePage extends StatefulWidget {
-  const HomePage({
-    super.key,
-    required this.title,
-    required this.themeController,
-  });
+  const HomePage({super.key, required this.themeController});
 
-  final String title;
-
-  /// 主题状态：顶部栏按钮切换它，「设置」页也改它
+  /// 主题状态：这里和设置页共用同一个对象
   final ThemeController themeController;
 
   @override
@@ -29,66 +25,10 @@ class _HomePageState extends State<HomePage> {
   // 抽屉要用 ScaffoldState 打开，所以给 Scaffold 挂一个 key
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
-  int _counter = 0;
-
-  // 陀螺仪订阅与显示值
-  final GyroscopeService _gyroscope = GyroscopeService();
-  StreamSubscription<GyroscopeEvent>? _gyroSub;
-  double _gx = 0;
-  double _gy = 0;
-  double _gz = 0;
-  bool _gyroActive = false;
-
-  // 姿态角（由 Mahony 互补滤波算出）
-  final OrientationService _orientation = OrientationService();
-  StreamSubscription<OrientationAngles>? _orientSub;
-  OrientationAngles? _angles;
-
-  @override
-  void initState() {
-    super.initState();
-    _gyroscope.start();
-    _gyroSub = _gyroscope.events.listen((event) {
-      if (!mounted) return;
-      setState(() {
-        _gx = event.x;
-        _gy = event.y;
-        _gz = event.z;
-        _gyroActive = true;
-      });
-    });
-
-    _orientation.start();
-    _orientSub = _orientation.events.listen((angles) {
-      if (!mounted) return;
-      setState(() => _angles = angles);
-    });
-  }
-
-  @override
-  void dispose() {
-    _gyroSub?.cancel(); // 先取消界面订阅
-    _gyroscope.dispose(); // 再释放服务资源
-    _orientSub?.cancel();
-    _orientation.dispose();
-    super.dispose();
-  }
-
-  void _incrementCounter() {
-    setState(() {
-      _counter++;
-    });
-  }
-
-  void _cleanCounter() {
-    setState(() {
-      _counter = 0;
-    });
-  }
-
-  /// 左上角菜单按钮：从侧面滑出抽屉
-  void _openDrawer() {
-    _scaffoldKey.currentState?.openDrawer();
+  void _open(Widget page) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (BuildContext context) => page),
+    );
   }
 
   @override
@@ -101,9 +41,10 @@ class _HomePageState extends State<HomePage> {
         leading: IconButton(
           icon: const Icon(Icons.menu),
           tooltip: '打开菜单',
-          onPressed: _openDrawer,
+          onPressed: () => _scaffoldKey.currentState?.openDrawer(),
         ),
-        actions: [
+        title: Text(AppInfo.appName),
+        actions: <Widget>[
           IconButton(
             // 切换主题：当前主题决定图标显示成“太阳”还是“月亮”
             icon: Icon(
@@ -114,68 +55,79 @@ class _HomePageState extends State<HomePage> {
             tooltip: '切换主题',
             onPressed: widget.themeController.toggle,
           ),
-          IconButton(
-            icon: const Icon(Icons.cleaning_services_sharp),
-            onPressed: _cleanCounter,
-          ),
         ],
-        title: Text(widget.title),
       ),
       body: Center(
         child: Column(
-          mainAxisAlignment: .center,
-          children: [
-            Text(
-              '你好',
-              style: Theme.of(context).textTheme.titleLarge,
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            _EntryButton(
+              icon: Icons.science_outlined,
+              label: 'test',
+              onTap: () => _open(TestPage(themeController: widget.themeController)),
             ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
+            const SizedBox(height: 20),
+            _EntryButton(
+              icon: Icons.bluetooth,
+              label: '蓝牙调试',
+              onTap: () => _open(const BluetoothPage()),
             ),
-            const SizedBox(height: 24),
-            // 姿态角展示（Mahony 互补滤波融合陀螺仪/加速度计/磁力计）
-            Text(
-              _angles != null ? '姿态角 roll / pitch / yaw' : '正在校准姿态角…',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            Text(
-              _angles == null
-                  ? '请保持手机静止几秒以初始化'
-                  : 'roll  ${_angles!.roll.toStringAsFixed(1)}°\n'
-                      'pitch ${_angles!.pitch.toStringAsFixed(1)}°\n'
-                      'yaw   ${_angles!.yaw.toStringAsFixed(1)}°',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 8),
-            // 磁力计状态：yaw 有没有绝对参考，直接决定它会不会漂移
-            Text(
-              _orientation.hasMagnetometer
-                  ? '磁力计：正常（yaw 有参考）'
-                  : '磁力计：无数据（yaw 会漂移）',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-            const SizedBox(height: 24),
-            // 陀螺仪原始数据展示（对比用）
-            Text(
-              _gyroActive ? '陀螺仪角速度 x/y/z (rad/s)' : '等待陀螺仪数据…',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            Text(
-              'x: ${_gx.toStringAsFixed(2)}\n'
-              'y: ${_gy.toStringAsFixed(2)}\n'
-              'z: ${_gz.toStringAsFixed(2)}',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleMedium,
+            const SizedBox(height: 20),
+            _EntryButton(
+              icon: Icons.info_outline,
+              label: '关于',
+              onTap: () => _open(const AboutPage()),
             ),
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
+    );
+  }
+}
+
+/// 主界面中间的入口按钮：带阴影的圆角块，视觉上浮在背景上
+class _EntryButton extends StatelessWidget {
+  const _EntryButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    super.key,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme colorScheme = Theme.of(context).colorScheme;
+    return Material(
+      elevation: 8,
+      borderRadius: BorderRadius.circular(18),
+      color: colorScheme.primaryContainer,
+      shadowColor: colorScheme.shadow,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: onTap,
+        child: SizedBox(
+          width: 220,
+          height: 64,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: <Widget>[
+              Icon(icon, color: colorScheme.onPrimaryContainer),
+              const SizedBox(width: 10),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w600,
+                  color: colorScheme.onPrimaryContainer,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

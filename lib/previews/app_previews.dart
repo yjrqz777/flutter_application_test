@@ -10,6 +10,7 @@ import '../pages/about_page.dart';
 import '../pages/bluetooth/bluetooth_page.dart';
 import '../pages/home_page.dart';
 import '../pages/settings_page.dart';
+import '../pages/test_page.dart';
 import '../theme.dart';
 import '../widgets/app_drawer.dart';
 import '../widgets/serial_console.dart';
@@ -21,12 +22,20 @@ import '../widgets/serial_console.dart';
 const Size _pageSize = Size(390, 844);
 const Size _panelSize = Size(390, 640);
 
-/// 主页面（亮色）
-@Preview(name: '主页面', group: '页面', size: _pageSize)
+/// 主界面：中间几个悬浮入口按钮
+@Preview(name: '主界面', group: '页面', size: _pageSize)
 Widget previewHomePage() => MaterialApp(
       theme: AppTheme.light,
       debugShowCheckedModeBanner: false,
-      home: HomePage(title: 'Flutter', themeController: ThemeController()),
+      home: HomePage(themeController: ThemeController()),
+    );
+
+/// test 页面：计数器 + 陀螺仪 + 姿态角
+@Preview(name: 'test 页面', group: '页面', size: _pageSize)
+Widget previewTestPage() => MaterialApp(
+      theme: AppTheme.light,
+      debugShowCheckedModeBanner: false,
+      home: TestPage(themeController: ThemeController()),
     );
 
 /// 侧边菜单（抽屉完全展开的样子）
