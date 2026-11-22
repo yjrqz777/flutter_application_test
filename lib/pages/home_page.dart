@@ -36,8 +36,36 @@ class _HomePageState extends State<HomePage>
   /// 展开 / 收起的动画进度：0 全收，1 全开
   late final AnimationController _expand = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 280),
+    duration: const Duration(milliseconds: 420),
+    reverseDuration: const Duration(milliseconds: 220),
   );
+
+  /// 入口数量：test、蓝牙调试、关于
+  static const int _entryCount = 3;
+
+  /// 每个入口的位移进度（错开起跑，easeOutQuint）
+  late final List<Animation<double>> _entryMove;
+
+  /// 每个入口的缩放进度（easeOutBack，带一点回弹）
+  late final List<Animation<double>> _entryPop;
+
+  @override
+  void initState() {
+    super.initState();
+    _entryMove = _buildEntryAnimations(Curves.easeOutQuint);
+    _entryPop = _buildEntryAnimations(Curves.easeOutBack);
+  }
+
+  /// 三个入口错开 8% 起跑，各自用整段动画 75% 的时间到位
+  List<Animation<double>> _buildEntryAnimations(Curve curve) {
+    return List<Animation<double>>.generate(_entryCount, (int index) {
+      final double start = index * 0.08;
+      return CurvedAnimation(
+        parent: _expand,
+        curve: Interval(start, start + 0.75, curve: curve),
+      );
+    });
+  }
 
   /// 入口圆心的展开半径（像素）
   static const double _radius = 96;
@@ -117,18 +145,21 @@ class _HomePageState extends State<HomePage>
             alignment: Alignment.center,
             children: <Widget>[
               _buildEntry(
+                index: 0,
                 icon: Icons.science_outlined,
                 label: 'test',
                 angleDegrees: _angleTest,
                 page: TestPage(themeController: widget.themeController),
               ),
               _buildEntry(
+                index: 1,
                 icon: Icons.bluetooth,
                 label: '蓝牙调试',
                 angleDegrees: _angleBluetooth,
                 page: const BluetoothPage(),
               ),
               _buildEntry(
+                index: 2,
                 icon: Icons.info_outline,
                 label: '关于',
                 angleDegrees: _angleAbout,
@@ -168,6 +199,7 @@ class _HomePageState extends State<HomePage>
 
   /// 一个放射状入口：按角度和进度算出位移，点击后以自身位置为圆心展开页面
   Widget _buildEntry({
+    required int index,
     required IconData icon,
     required String label,
     required double angleDegrees,
@@ -182,18 +214,23 @@ class _HomePageState extends State<HomePage>
     final Offset localOrigin =
         Offset(_stageSize.width / 2, _stageSize.height / 2) + target;
 
+    final Animation<double> move = _entryMove[index];
+    final Animation<double> pop = _entryPop[index];
+
     return AnimatedBuilder(
       animation: _expand,
       builder: (BuildContext context, Widget? child) {
-        final double progress =
-            Curves.easeOutCubic.transform(_expand.value.clamp(0.0, 1.0));
+        final double progress = move.value.clamp(0.0, 1.0);
+        // pop 用 easeOutBack，值会略微超过 1，clamp 一下防止缩放过大
+        final double scale = (0.55 + 0.45 * pop.value).clamp(0.3, 1.15);
+
         return Transform.translate(
           offset: target * progress,
           child: Opacity(
             opacity: progress,
-            child: IgnorePointer(
-              ignoring: progress < 0.5,
-              child: child,
+            child: Transform.scale(
+              scale: scale,
+              child: IgnorePointer(ignoring: progress < 0.5, child: child),
             ),
           ),
         );

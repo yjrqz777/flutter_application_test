@@ -4,8 +4,13 @@ import 'package:flutter/material.dart';
 
 /// 从一个圆心向外扩散的页面转场。
 ///
-/// 为什么单独做一个：主界面是放射状菜单，点入口时让页面也"从那个圆里长出来"，
-/// 动效和菜单展开的方向连成一条线，比默认整页淡入更连贯。
+/// 为什么单独做一个：主界面是放射状菜单，点入口时让页面从那个圆里"长"出来，
+/// 动效和菜单展开的方向连成一条线。
+///
+/// 三段合成，避免单纯的圆形硬擦除：
+///   1. 圆形裁剪半径：easeOutQuart，起手快、收尾稳；
+///   2. 页面整体淡入：只占前 55% 时间，画面不会到最后才跳出来；
+///   3. 轻微放大 0.97 -> 1，让内容有"推近"的层次感。
 ///
 /// [origin] 是全局坐标系里的扩散圆心（一般取被点按钮的中心）。
 Route<T> circularRevealRoute<T>({
@@ -15,7 +20,7 @@ Route<T> circularRevealRoute<T>({
   return PageRouteBuilder<T>(
     // 不透明路由会让下层页面停止绘制，圆形外就没有内容露出来，所以关掉
     opaque: false,
-    transitionDuration: const Duration(milliseconds: 320),
+    transitionDuration: const Duration(milliseconds: 340),
     reverseTransitionDuration: const Duration(milliseconds: 240),
     pageBuilder: (
       BuildContext context,
@@ -44,18 +49,29 @@ class _CircleReveal extends StatelessWidget {
   final Offset origin;
   final Widget child;
 
+  /// 淡入只占整段动画前 55% 的时间
+  static final Animatable<double> _fadeInterval =
+      const Interval(0.0, 0.55, curve: Curves.easeOut);
+
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: animation,
       builder: (BuildContext context, Widget? revealChild) {
+        final double progress = animation.value.clamp(0.0, 1.0);
         final Size size = MediaQuery.sizeOf(context);
         final double fullRadius = _radiusToFarthestCorner(origin, size);
-        final double radius = fullRadius *
-            Curves.easeOutCubic.transform(animation.value.clamp(0.0, 1.0));
+
+        final double reveal = Curves.easeOutQuart.transform(progress);
+        final double fade = _fadeInterval.transform(progress);
+        final double scale = 0.97 + 0.03 * reveal;
+
         return ClipPath(
-          clipper: _CircleClipper(center: origin, radius: radius),
-          child: revealChild,
+          clipper: _CircleClipper(center: origin, radius: fullRadius * reveal),
+          child: Opacity(
+            opacity: fade,
+            child: Transform.scale(scale: scale, child: revealChild),
+          ),
         );
       },
       child: child,
