@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'app/app_info.dart';
 import 'app/theme_controller.dart';
 import 'pages/home_page.dart';
 import 'theme.dart';
@@ -31,7 +32,7 @@ class _MyAppState extends State<MyApp> {
       listenable: _themeController,
       builder: (BuildContext context, Widget? child) {
         return MaterialApp(
-          title: 'Flutter Demo',
+          title: AppInfo.appName,
           theme: AppTheme.light,
           darkTheme: AppTheme.dark,
           themeMode: _themeController.mode,

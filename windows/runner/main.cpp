@@ -27,7 +27,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   FlutterWindow window(project);
   Win32Window::Point origin(10, 10);
   Win32Window::Size size(1280, 720);
-  if (!window.Create(L"flutter_application_test", origin, size)) {
+  // 窗口标题："多功能调试工具"，用 \u 转义避免依赖源文件编码
+  if (!window.Create(L"\u591a\u529f\u80fd\u8c03\u8bd5\u5de5\u5177", origin, size)) {
     return EXIT_FAILURE;
   }
   window.SetQuitOnClose(true);
