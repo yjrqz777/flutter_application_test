@@ -58,22 +58,24 @@ class _HomePageState extends State<HomePage> {
         ],
       ),
       body: Center(
-        child: Column(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            _EntryButton(
+            _CircleEntry(
               icon: Icons.science_outlined,
               label: 'test',
-              onTap: () => _open(TestPage(themeController: widget.themeController)),
+              onTap: () =>
+                  _open(TestPage(themeController: widget.themeController)),
             ),
-            const SizedBox(height: 20),
-            _EntryButton(
+            const SizedBox(width: 28),
+            _CircleEntry(
               icon: Icons.bluetooth,
               label: '蓝牙调试',
               onTap: () => _open(const BluetoothPage()),
             ),
-            const SizedBox(height: 20),
-            _EntryButton(
+            const SizedBox(width: 28),
+            _CircleEntry(
               icon: Icons.info_outline,
               label: '关于',
               onTap: () => _open(const AboutPage()),
@@ -85,9 +87,9 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
-/// 主界面中间的入口按钮：带阴影的圆角块，视觉上浮在背景上
-class _EntryButton extends StatelessWidget {
-  const _EntryButton({
+/// 主界面中间的入口按钮：圆形小按钮，文字放在圆下方
+class _CircleEntry extends StatelessWidget {
+  const _CircleEntry({
     required this.icon,
     required this.label,
     required this.onTap,
@@ -101,32 +103,31 @@ class _EntryButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ColorScheme colorScheme = Theme.of(context).colorScheme;
-    return Material(
-      elevation: 8,
-      borderRadius: BorderRadius.circular(18),
-      color: colorScheme.primaryContainer,
-      shadowColor: colorScheme.shadow,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(18),
-        onTap: onTap,
-        child: SizedBox(
-          width: 220,
-          height: 64,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: <Widget>[
-              Icon(icon, color: colorScheme.onPrimaryContainer),
-              const SizedBox(width: 10),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w600,
-                  color: colorScheme.onPrimaryContainer,
-                ),
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: colorScheme.surfaceContainerHighest,
               ),
-            ],
-          ),
+              child: Icon(icon, size: 24, color: colorScheme.primary),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              label,
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+            ),
+          ],
         ),
       ),
     );
