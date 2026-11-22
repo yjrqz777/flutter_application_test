@@ -10,8 +10,8 @@ import 'about_page.dart';
 import 'bluetooth/bluetooth_page.dart';
 import 'test_page.dart';
 
-/// 主界面：中间一个圆形主按钮，点开以后 test、蓝牙调试、关于三个入口
-/// 从中心呈放射状展开。
+/// 主界面：test、蓝牙调试、关于三个入口常驻显示，
+/// 围绕中心排成一个三角形，点哪个就从那个圆的圆心展开对应页面。
 ///
 /// 左上角菜单仍然打开抽屉（设置、关于、蓝牙调试），
 /// 原来的传感器 / 计数器页面移到了 [TestPage]，从 test 入口进入。
@@ -25,52 +25,17 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage>
-    with SingleTickerProviderStateMixin {
+class _HomePageState extends State<HomePage> {
   // 抽屉要用 ScaffoldState 打开，所以给 Scaffold 挂一个 key
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
-  // 放射菜单的舞台，用来把入口的局部坐标换算成屏幕坐标
+  // 入口布局的舞台，用来把入口的局部坐标换算成屏幕坐标
   final GlobalKey _menuKey = GlobalKey();
 
-  /// 展开 / 收起的动画进度：0 全收，1 全开
-  late final AnimationController _expand = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 420),
-    reverseDuration: const Duration(milliseconds: 220),
-  );
-
-  /// 入口数量：test、蓝牙调试、关于
-  static const int _entryCount = 3;
-
-  /// 每个入口的位移进度（错开起跑，easeOutQuint）
-  late final List<Animation<double>> _entryMove;
-
-  /// 每个入口的缩放进度（easeOutBack，带一点回弹）
-  late final List<Animation<double>> _entryPop;
-
-  @override
-  void initState() {
-    super.initState();
-    _entryMove = _buildEntryAnimations(Curves.easeOutQuint);
-    _entryPop = _buildEntryAnimations(Curves.easeOutBack);
-  }
-
-  /// 三个入口错开 8% 起跑，各自用整段动画 75% 的时间到位
-  List<Animation<double>> _buildEntryAnimations(Curve curve) {
-    return List<Animation<double>>.generate(_entryCount, (int index) {
-      final double start = index * 0.08;
-      return CurvedAnimation(
-        parent: _expand,
-        curve: Interval(start, start + 0.75, curve: curve),
-      );
-    });
-  }
-
-  /// 入口圆心的展开半径（像素）
+  /// 入口圆心到舞台中心的距离（像素）
   static const double _radius = 96;
 
-  /// 放射菜单舞台的尺寸
+  /// 入口布局舞台的尺寸
   static const Size _stageSize = Size(320, 320);
 
   /// 三个入口分布的角度（度）：正上方、右下、左下
@@ -78,26 +43,10 @@ class _HomePageState extends State<HomePage>
   static const double _angleBluetooth = 30;
   static const double _angleAbout = 150;
 
-  @override
-  void dispose() {
-    _expand.dispose();
-    super.dispose();
-  }
-
-  void _toggle() {
-    if (_expand.isCompleted || _expand.status == AnimationStatus.forward) {
-      _expand.reverse();
-    } else {
-      _expand.forward();
-    }
-  }
-
-  /// 打开入口页：页面从被点的那个圆的位置扩散展开。
+  /// 打开入口页：页面从被点入口的圆心扩散展开。
   ///
-  /// [localOrigin] 是被点入口在放射菜单里的圆心坐标（已经算上展开位移）。
+  /// [localOrigin] 是该入口在舞台里的圆心坐标。
   void _open(Widget page, Offset localOrigin) {
-    _expand.reverse();
-
     final RenderBox? menuBox =
         _menuKey.currentContext?.findRenderObject() as RenderBox?;
     final Offset origin = menuBox != null && menuBox.hasSize
@@ -145,27 +94,23 @@ class _HomePageState extends State<HomePage>
             alignment: Alignment.center,
             children: <Widget>[
               _buildEntry(
-                index: 0,
                 icon: Icons.science_outlined,
                 label: 'test',
                 angleDegrees: _angleTest,
                 page: TestPage(themeController: widget.themeController),
               ),
               _buildEntry(
-                index: 1,
                 icon: Icons.bluetooth,
                 label: '蓝牙调试',
                 angleDegrees: _angleBluetooth,
                 page: const BluetoothPage(),
               ),
               _buildEntry(
-                index: 2,
                 icon: Icons.info_outline,
                 label: '关于',
                 angleDegrees: _angleAbout,
                 page: const AboutPage(),
               ),
-              _buildCenterButton(context),
             ],
           ),
         ),
@@ -173,33 +118,8 @@ class _HomePageState extends State<HomePage>
     );
   }
 
-  /// 中间的主按钮：点击展开 / 收起，图标在展开时转成关闭
-  Widget _buildCenterButton(BuildContext context) {
-    final ColorScheme colorScheme = Theme.of(context).colorScheme;
-    return Material(
-      color: colorScheme.primary,
-      shape: const CircleBorder(),
-      elevation: 4,
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: _toggle,
-        child: SizedBox(
-          width: 64,
-          height: 64,
-          child: RotationTransition(
-            turns: Tween<double>(begin: 0, end: 0.125).animate(
-              CurvedAnimation(parent: _expand, curve: Curves.easeOutCubic),
-            ),
-            child: Icon(Icons.add, size: 28, color: colorScheme.onPrimary),
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// 一个放射状入口：按角度和进度算出位移，点击后以自身位置为圆心展开页面
+  /// 一个入口：按角度摆在圆周上，点击后以自身位置为圆心展开页面
   Widget _buildEntry({
-    required int index,
     required IconData icon,
     required String label,
     required double angleDegrees,
@@ -210,31 +130,11 @@ class _HomePageState extends State<HomePage>
       math.cos(radians) * _radius,
       math.sin(radians) * _radius,
     );
-    // 入口展开到位后在舞台里的圆心坐标
     final Offset localOrigin =
         Offset(_stageSize.width / 2, _stageSize.height / 2) + target;
 
-    final Animation<double> move = _entryMove[index];
-    final Animation<double> pop = _entryPop[index];
-
-    return AnimatedBuilder(
-      animation: _expand,
-      builder: (BuildContext context, Widget? child) {
-        final double progress = move.value.clamp(0.0, 1.0);
-        // pop 用 easeOutBack，值会略微超过 1，clamp 一下防止缩放过大
-        final double scale = (0.55 + 0.45 * pop.value).clamp(0.3, 1.15);
-
-        return Transform.translate(
-          offset: target * progress,
-          child: Opacity(
-            opacity: progress,
-            child: Transform.scale(
-              scale: scale,
-              child: IgnorePointer(ignoring: progress < 0.5, child: child),
-            ),
-          ),
-        );
-      },
+    return Transform.translate(
+      offset: target,
       child: _EntryCircle(
         icon: icon,
         label: label,
@@ -244,7 +144,7 @@ class _HomePageState extends State<HomePage>
   }
 }
 
-/// 放射状展开出来的单个入口：圆形按钮 + 下方文字
+/// 单个入口：圆形按钮 + 下方文字
 class _EntryCircle extends StatelessWidget {
   const _EntryCircle({
     required this.icon,
