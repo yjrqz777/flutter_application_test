@@ -88,7 +88,6 @@ class _TestPageState extends State<TestPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: <Widget>[
           IconButton(
             // 切换主题：当前主题决定图标显示成“太阳”还是“月亮”
