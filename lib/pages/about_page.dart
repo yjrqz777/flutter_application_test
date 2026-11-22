@@ -31,7 +31,7 @@ class AboutPage extends StatelessWidget {
           const SizedBox(height: 4),
           Center(
             child: Text(
-              '版本 ${AppInfo.version}',
+              'v${AppInfo.version} · 构建 ${AppInfo.buildNumber}',
               style: theme.textTheme.bodySmall,
             ),
           ),

@@ -3,7 +3,8 @@ class AppInfo {
   AppInfo._();
 
   static const String appName = '多功能调试工具';
-  static const String version = '1.0.0+1';
+  static const String version = '0.0.1';
+  static const String buildNumber = '1';
   static const String description =
       '面向硬件调试的桌面 / 移动工具：查看陀螺仪与姿态角，用经典蓝牙或 BLE 串口和板子收发数据。';
 
