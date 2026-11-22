@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'app/page_transitions.dart';
+
 // 全局主题：所有样式集中在这里管理，改一处全 App 生效。
 // 主题分为 亮色(light) 和 暗色(dark) 两套。
 class AppTheme {
@@ -13,13 +15,28 @@ class AppTheme {
         colorScheme: ColorScheme.fromSeed(seedColor: _seedColor),
         textTheme: _textTheme,
         appBarTheme: _appBarTheme,
+        pageTransitionsTheme: _pageTransitionsTheme,
       );
 
   /// 暗色主题（沿用相同的文字样式与顶部栏造型，仅背景变暗）
   static ThemeData get dark => ThemeData.dark().copyWith(
         textTheme: _textTheme,
         appBarTheme: _appBarTheme,
+        pageTransitionsTheme: _pageTransitionsTheme,
       );
+
+  /// 页面转场：所有平台统一用同一套淡入 + 轻微上滑，避免桌面端默认缩放发虚
+  static const PageTransitionsTheme _pageTransitionsTheme =
+      PageTransitionsTheme(
+    builders: <TargetPlatform, PageTransitionsBuilder>{
+      TargetPlatform.android: SmoothPageTransitionsBuilder(),
+      TargetPlatform.iOS: SmoothPageTransitionsBuilder(),
+      TargetPlatform.macOS: SmoothPageTransitionsBuilder(),
+      TargetPlatform.windows: SmoothPageTransitionsBuilder(),
+      TargetPlatform.linux: SmoothPageTransitionsBuilder(),
+      TargetPlatform.fuchsia: SmoothPageTransitionsBuilder(),
+    },
+  );
 
   /// 顶部栏造型（亮/暗共用）
   static const AppBarTheme _appBarTheme = AppBarTheme(
