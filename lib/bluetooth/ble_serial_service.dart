@@ -35,8 +35,10 @@ class BleSerialService extends SerialSession {
   /// 扫描结果，按信号强度从强到弱排好
   List<ScanResult> get results => List<ScanResult>.unmodifiable(_results);
 
+  @override
   bool get isScanning => _scanning;
 
+  @override
   bool get isSupported => _supported;
 
   /// 取设备显示名：没广播名字就退回设备 ID
@@ -70,6 +72,7 @@ class BleSerialService extends SerialSession {
   }
 
   /// 开始扫描
+  @override
   Future<void> startScan() async {
     if (_scanning || !_supported) return;
 
@@ -89,6 +92,7 @@ class BleSerialService extends SerialSession {
   }
 
   /// 停止扫描
+  @override
   Future<void> stopScan() async {
     try {
       await FlutterBluePlus.stopScan();
@@ -154,6 +158,7 @@ class BleSerialService extends SerialSession {
   }
 
   /// 主动断开
+  @override
   Future<void> disconnect() async {
     await _cleanup();
     setStatus('已断开连接');

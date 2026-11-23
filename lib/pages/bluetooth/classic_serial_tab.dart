@@ -5,105 +5,68 @@ import '../../bluetooth/classic_serial_service.dart';
 import '../../bluetooth/serial_view_settings.dart';
 import '../../widgets/device_list_tile.dart';
 import '../../widgets/empty_hint.dart';
-import '../../widgets/serial_action_bar.dart';
 import '../../widgets/serial_console.dart';
 
-/// 经典蓝牙（RFCOMM / SPP）串口调试页。
+/// 经典蓝牙（RFCOMM / SPP）模式的内容区。
 ///
-/// 适配 HC-05 / HC-06 这类串口模块，也适配 ESP32 的经典蓝牙 BluetoothSerial。
-class ClassicSerialTab extends StatefulWidget {
-  const ClassicSerialTab({super.key, required this.settings});
+/// 扫描按钮和模式开关由蓝牙调试页统一管理，这里只按当前状态画：
+/// 没连上时画设备列表，连上后画串口控制台。
+class ClassicSerialView extends StatelessWidget {
+  const ClassicSerialView({
+    super.key,
+    required this.service,
+    required this.settings,
+  });
 
-  /// 和 BLE 页签共用的显示配置
+  /// 经典蓝牙会话，由页面持有和初始化
+  final ClassicSerialService service;
+
+  /// 和 BLE 模式共用的显示配置
   final SerialViewSettings settings;
 
   @override
-  State<ClassicSerialTab> createState() => _ClassicSerialTabState();
-}
-
-class _ClassicSerialTabState extends State<ClassicSerialTab>
-    with AutomaticKeepAliveClientMixin {
-  final ClassicSerialService _service = ClassicSerialService();
-
-  // 切到另一个页签时不销毁页面，避免正在进行的连接被重置
-  @override
-  bool get wantKeepAlive => true;
-
-  @override
-  void initState() {
-    super.initState();
-    _service.init();
-  }
-
-  @override
-  void dispose() {
-    _service.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    super.build(context);
-    return ListenableBuilder(
-      listenable: _service,
-      builder: (BuildContext context, Widget? child) {
-        return Column(
-          children: <Widget>[
-            SerialActionBar(
-              status: _service.status,
-              connected: _service.isConnected,
-              scanning: _service.isScanning,
-              busy: _service.isBusy,
-              onScanToggle:
-                  _service.isScanning ? _service.stopScan : _service.startScan,
-              onDisconnect: _service.disconnect,
-            ),
-            Expanded(
-              child: _service.isConnected
-                  ? SerialConsole(
-                      messages: _service.messages,
-                      canSend: _service.canSend,
-                      settings: widget.settings,
-                      txBytes: _service.txBytes,
-                      rxBytes: _service.rxBytes,
-                      onSend: (String text, bool hexMode) =>
-                          _service.sendText(text, hexMode: hexMode),
-                      onClear: _service.clearMessages,
-                    )
-                  : _buildDeviceList(context),
-            ),
-          ],
-        );
-      },
-    );
+    if (service.isConnected) {
+      return SerialConsole(
+        messages: service.messages,
+        canSend: service.canSend,
+        settings: settings,
+        txBytes: service.txBytes,
+        rxBytes: service.rxBytes,
+        onSend: (String text, bool hexMode) =>
+            service.sendText(text, hexMode: hexMode),
+        onClear: service.clearMessages,
+      );
+    }
+    return _buildDeviceList(context);
   }
 
   Widget _buildDeviceList(BuildContext context) {
-    if (!_service.isSupported) {
+    if (!service.isSupported) {
       return const EmptyHint(
         icon: Icons.bluetooth_disabled,
         title: '当前平台不支持经典蓝牙串口',
         description: '经典蓝牙（SPP）需要 Android 手机，或带蓝牙适配器的 Windows 电脑',
       );
     }
-    if (_service.devices.isEmpty) {
+    if (service.devices.isEmpty) {
       return EmptyHint(
-        title: _service.isScanning ? '正在扫描…' : '还没有找到设备',
-        description: _service.isScanning
+        title: service.isScanning ? '正在扫描…' : '还没有找到设备',
+        description: service.isScanning
             ? '请让串口模块进入配对 / 可被发现状态'
             : '点击上方「扫描设备」搜索 HC-05、HC-06、ESP32 等经典蓝牙模块',
       );
     }
     return ListView.separated(
-      itemCount: _service.devices.length,
+      itemCount: service.devices.length,
       separatorBuilder: (BuildContext context, int index) =>
           const Divider(height: 1),
       itemBuilder: (BuildContext context, int index) {
-        final BtcDevice device = _service.devices[index];
+        final BtcDevice device = service.devices[index];
         return DeviceListTile(
           title: device.displayName,
           subtitle: _subtitleOf(device),
-          onTap: () => _service.connect(device),
+          onTap: () => service.connect(device),
         );
       },
     );
@@ -113,11 +76,18 @@ class _ClassicSerialTabState extends State<ClassicSerialTab>
   String _subtitleOf(BtcDevice device) {
     final List<String> parts = <String>[
       device.address,
-      device.bondState.name,
+      _bondStateLabel(device.bondState),
     ];
     if (device.rssi != null) {
       parts.add('${device.rssi} dBm');
     }
     return parts.join(' · ');
   }
+
+  /// 已保存配对的设备标成「已配对」，其余状态也翻成中文
+  String _bondStateLabel(BtcBondState state) => switch (state) {
+    BtcBondState.bonded => '已配对',
+    BtcBondState.bonding => '配对中',
+    BtcBondState.none => '未配对',
+  };
 }

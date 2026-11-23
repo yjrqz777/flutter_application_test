@@ -66,7 +66,7 @@ Widget previewAboutPage() => MaterialApp(
       home: const AboutPage(),
     );
 
-/// 蓝牙调试页（两个页签的骨架）
+/// 蓝牙调试页（经典 / BLE 模式切换）
 @Preview(name: '蓝牙调试', group: '串口', size: _pageSize)
 Widget previewBluetoothPage() => MaterialApp(
       theme: AppTheme.light,

@@ -25,8 +25,10 @@ class ClassicSerialService extends SerialSession {
   /// 扫描到的设备 + 已配对设备（按地址去重合并）
   List<BtcDevice> get devices => List<BtcDevice>.unmodifiable(_devices);
 
+  @override
   bool get isScanning => _scanning;
 
+  @override
   bool get isSupported => _supported;
 
   /// 初始化：检查支持情况、读已配对设备、订阅扫描结果。
@@ -50,6 +52,7 @@ class ClassicSerialService extends SerialSession {
   }
 
   /// 开始扫描。Android 11 及以下扫描还需要打开系统定位开关，这里一并检查。
+  @override
   Future<void> startScan() async {
     if (_scanning || !_supported) return;
 
@@ -76,6 +79,7 @@ class ClassicSerialService extends SerialSession {
   }
 
   /// 停止扫描
+  @override
   Future<void> stopScan() async {
     if (!_scanning) return;
     try {
@@ -120,6 +124,7 @@ class ClassicSerialService extends SerialSession {
   }
 
   /// 主动断开
+  @override
   Future<void> disconnect() async {
     await _cleanup(silent: true);
     setStatus('已断开连接');

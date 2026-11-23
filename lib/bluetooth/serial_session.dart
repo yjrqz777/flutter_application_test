@@ -7,8 +7,8 @@ import 'serial_message.dart';
 
 /// 串口会话基类：经典蓝牙和 BLE 共用的一套状态与交互。
 ///
-/// 子类只需要实现 [writeBytes]（怎么把字节写出去）以及自己的连接流程，
-/// 日志、连接状态、发送解析这些重复逻辑都留在基类里。
+/// 子类只需要实现 [writeBytes]（怎么把字节写出去）、扫描相关的几个方法，
+/// 以及自己的连接流程；日志、连接状态、发送解析这些重复逻辑都留在基类里。
 abstract class SerialSession extends ChangeNotifier {
   /// 日志上限：调试时数据刷得很快，不限制会一直占内存。
   static const int maxMessages = 500;
@@ -43,6 +43,21 @@ abstract class SerialSession extends ChangeNotifier {
 
   /// 是否可以发送数据
   bool get canSend => _connected && !_busy;
+
+  /// 当前平台是否支持这类蓝牙（经典 / BLE）
+  bool get isSupported;
+
+  /// 是否正在扫描附近设备
+  bool get isScanning;
+
+  /// 开始扫描附近设备
+  Future<void> startScan();
+
+  /// 停止扫描
+  Future<void> stopScan();
+
+  /// 主动断开当前连接
+  Future<void> disconnect();
 
   @protected
   bool get isDisposed => _disposed;
