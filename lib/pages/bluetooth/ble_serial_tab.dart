@@ -6,6 +6,7 @@ import '../../bluetooth/serial_view_settings.dart';
 import '../../widgets/device_list_tile.dart';
 import '../../widgets/empty_hint.dart';
 import '../../widgets/serial_console.dart';
+import 'ble_characteristic_page.dart';
 
 /// BLE 低功耗串口模式的内容区。
 ///
@@ -36,9 +37,19 @@ class BleSerialView extends StatelessWidget {
         onSend: (String text, bool hexMode) =>
             service.sendText(text, hexMode: hexMode),
         onClear: service.clearMessages,
+        onOpenCharacteristics: () => _openCharacteristics(context),
       );
     }
     return _buildDeviceList(context);
+  }
+
+  void _openCharacteristics(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (BuildContext context) =>
+            BleCharacteristicPage(service: service),
+      ),
+    );
   }
 
   Widget _buildDeviceList(BuildContext context) {

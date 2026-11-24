@@ -15,6 +15,7 @@ class SerialConsole extends StatefulWidget {
     required this.settings,
     required this.onSend,
     required this.onClear,
+    this.onOpenCharacteristics,
     this.txBytes = 0,
     this.rxBytes = 0,
   });
@@ -28,6 +29,9 @@ class SerialConsole extends StatefulWidget {
   /// 第二个参数表示是否按 HEX 发送
   final void Function(String text, bool hexMode) onSend;
   final VoidCallback onClear;
+
+  /// 非空时在工具栏显示「服务与特征」入口，只有 BLE 模式会传
+  final VoidCallback? onOpenCharacteristics;
 
   /// 累计发送字节数
   final int txBytes;
@@ -95,6 +99,12 @@ class _SerialConsoleState extends State<SerialConsole> {
                 style: theme.textTheme.bodySmall,
               ),
               const Spacer(),
+              if (widget.onOpenCharacteristics != null)
+                IconButton(
+                  icon: const Icon(Icons.account_tree_outlined),
+                  tooltip: '服务与特征',
+                  onPressed: widget.onOpenCharacteristics,
+                ),
               Text('HEX', style: theme.textTheme.bodySmall),
               Switch(
                 value: _hexMode,
@@ -188,9 +198,8 @@ class _SerialConsoleState extends State<SerialConsole> {
                 decoration: InputDecoration(
                   isDense: true,
                   border: const OutlineInputBorder(),
-                  hintText: _hexMode
-                      ? '输入 HEX，例如 01 0A FF'
-                      : '输入要发送的内容，例如 AT+RESET',
+                  hintMaxLines: 1,
+                  hintText: _hexMode ? '输入 HEX' : '输入内容',
                 ),
               ),
             ),

@@ -4,6 +4,7 @@ import '../app/app_info.dart';
 import '../app/theme_controller.dart';
 import '../pages/about_page.dart';
 import '../pages/bluetooth/bluetooth_page.dart';
+import '../pages/log_page.dart';
 import '../pages/settings_page.dart';
 
 /// 从左侧滑出的主菜单：设置、关于、蓝牙调试。
@@ -33,6 +34,12 @@ class AppDrawer extends StatelessWidget {
                     title: '蓝牙调试',
                     subtitle: '经典蓝牙串口 / BLE 串口',
                     onTap: () => _open(context, const BluetoothPage()),
+                  ),
+                  _DrawerItem(
+                    icon: Icons.terminal,
+                    title: '控制台',
+                    subtitle: '系统事件与收发日志',
+                    onTap: () => _open(context, const LogPage()),
                   ),
                 ],
               ),

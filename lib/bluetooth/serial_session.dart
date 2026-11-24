@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 
+import '../logging/app_log.dart';
 import 'bytes_utils.dart';
 import 'serial_message.dart';
 
@@ -47,6 +48,9 @@ abstract class SerialSession extends ChangeNotifier {
   /// 当前平台是否支持这类蓝牙（经典 / BLE）
   bool get isSupported;
 
+  /// 日志里标记来源用的短名字，继承类各自实现（BLE / 经典）
+  String get logTag;
+
   /// 是否正在扫描附近设备
   bool get isScanning;
 
@@ -80,16 +84,27 @@ abstract class SerialSession extends ChangeNotifier {
   void setStatus(String value) {
     if (_disposed || _status == value) return;
     _status = value;
+    // 状态栏的每句话都记进控制台，事后能把整条流程还原出来
+    AppLog.instance.addSystem(logTag, value);
     notifyListeners();
   }
 
-  /// 往控制台追加一条系统提示
-  void addSystem(String text) => _append(SerialMessage.system(text));
+  /// 往控制台追加一条系统提示，同时记进日志
+  void addSystem(String text, {String? stack}) {
+    AppLog.instance.addSystem(logTag, text, stack: stack);
+    _append(SerialMessage.system(text));
+  }
 
-  /// 往控制台追加一条接收记录
+  /// 往控制台追加一条接收记录，同时记进日志
   @protected
   void addRx(Uint8List bytes) {
     _rxBytes += bytes.length;
+    AppLog.instance.add(
+      LogLevel.info,
+      LogKind.rx,
+      logTag,
+      '${bytes.length}B ${BytesUtils.describe(bytes)}',
+    );
     _append(SerialMessage.rx(bytes));
   }
 
@@ -123,9 +138,15 @@ abstract class SerialSession extends ChangeNotifier {
     try {
       await writeBytes(Uint8List.fromList(bytes));
       _txBytes += bytes.length;
+      AppLog.instance.add(
+        LogLevel.info,
+        LogKind.tx,
+        logTag,
+        '${bytes.length}B ${BytesUtils.describe(bytes)}',
+      );
       _append(SerialMessage.tx(bytes));
-    } catch (error) {
-      addSystem('发送失败：$error');
+    } catch (error, stack) {
+      addSystem('发送失败：$error', stack: '$stack');
     }
   }
 

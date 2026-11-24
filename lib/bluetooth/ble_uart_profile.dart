@@ -61,6 +61,21 @@ class BleUartProfile {
       characteristic.properties.write ||
       characteristic.properties.writeWithoutResponse;
 
+  /// 把特征属性翻成一行短标签，日志和「服务与特征」页共用
+  static String describeProperties(CharacteristicProperties properties) {
+    final List<String> parts = <String>[
+      if (properties.read) 'read',
+      if (properties.write) 'write',
+      if (properties.writeWithoutResponse) 'writeNoRsp',
+      if (properties.notify) 'notify',
+      if (properties.indicate) 'indicate',
+      if (properties.broadcast) 'broadcast',
+      if (properties.authenticatedSignedWrites) 'signed',
+      if (properties.extendedProperties) 'extended',
+    ];
+    return parts.isEmpty ? '没有可用属性' : parts.join('/');
+  }
+
   static bool _canNotify(BluetoothCharacteristic characteristic) =>
       characteristic.properties.notify || characteristic.properties.indicate;
 

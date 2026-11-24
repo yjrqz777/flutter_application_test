@@ -2,10 +2,28 @@ import 'package:flutter/material.dart';
 
 import 'app/app_info.dart';
 import 'app/theme_controller.dart';
+import 'logging/app_log.dart';
 import 'pages/home_page.dart';
 import 'theme.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // 先把日志起好，后面各处写的日志才有地方落；框架异常也记进控制台
+  await AppLog.instance.init();
+  FlutterError.onError = (FlutterErrorDetails details) {
+    final String context =
+        details.context == null ? '' : '（${details.context}）';
+    AppLog.instance.add(
+      LogLevel.error,
+      LogKind.system,
+      'App',
+      '${details.exceptionAsString()}$context',
+      stack: details.stack?.toString(),
+    );
+    FlutterError.presentError(details);
+  };
+
   runApp(const MyApp());
 }
 
