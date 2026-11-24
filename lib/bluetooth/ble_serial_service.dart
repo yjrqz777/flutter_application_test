@@ -83,7 +83,7 @@ class BleSerialService extends SerialSession {
       }
       _scanSub = FlutterBluePlus.onScanResults.listen(
         _onScanResults,
-        onError: (Object error) => addSystem('扫描出错：$error'),
+        onError: (Object error) => addLog('扫描出错：$error'),
       );
       _scanningSub = FlutterBluePlus.isScanning.listen((bool value) {
         if (_scanning == value || isDisposed) return;
@@ -91,11 +91,11 @@ class BleSerialService extends SerialSession {
         notifyListeners();
       });
       setStatus('点击「扫描设备」搜索 BLE 从机');
-      addSystem('BLE 初始化完成，准备就绪');
+      addLog('BLE 初始化完成，准备就绪');
     } catch (error, stack) {
       _supported = false;
       setStatus('BLE 初始化失败：$error');
-      addSystem('BLE 初始化异常', stack: '$stack');
+      addLog('BLE 初始化异常', stack: '$stack');
     }
   }
 
@@ -113,12 +113,12 @@ class BleSerialService extends SerialSession {
     _loggedDeviceIds.clear();
     notifyListeners();
     setStatus('正在扫描 BLE 设备…');
-    addSystem('开始扫描，超时 ${_scanDuration.inSeconds} 秒');
+    addLog('开始扫描，超时 ${_scanDuration.inSeconds} 秒');
     try {
       await FlutterBluePlus.startScan(timeout: _scanDuration);
     } catch (error, stack) {
       setStatus('扫描失败：$error');
-      addSystem('扫描异常', stack: '$stack');
+      addLog('扫描异常', stack: '$stack');
     }
   }
 
@@ -150,7 +150,7 @@ class BleSerialService extends SerialSession {
 
       setStatus('正在连接 $name…');
       final BluetoothDevice device = result.device;
-      addSystem('开始连接：$name（${device.remoteId}），信号 ${result.rssi} dBm');
+      addLog('开始连接：$name（${device.remoteId}），信号 ${result.rssi} dBm');
       _device = device;
       _connectionSub = device.connectionState.listen(
         (BluetoothConnectionState state) =>
@@ -158,7 +158,7 @@ class BleSerialService extends SerialSession {
       );
 
       await device.connect(license: _license, timeout: _connectionTimeout);
-      addSystem('连接成功：$name（${device.remoteId}），当前 MTU ${device.mtuNow}');
+      addLog('连接成功：$name（${device.remoteId}），当前 MTU ${device.mtuNow}');
 
       final List<BluetoothService> services = await device.discoverServices();
       _logDiscovery(services, device);
@@ -175,20 +175,27 @@ class BleSerialService extends SerialSession {
       setConnected(true);
       if (characteristics.canSend) {
         setStatus('已连接 $name，可以收发数据了');
-        final String writeText = '写 ${formatUuid(characteristics.write!.uuid)}'
-            '（${BleUartProfile.describeProperties(characteristics.write!.properties)}）';
-        final String notifyText = characteristics.canReceive
-            ? '，收 ${formatUuid(characteristics.notify!.uuid)}'
-                '（${BleUartProfile.describeProperties(characteristics.notify!.properties)}）'
-            : '，对端未开启通知';
-        addSystem('串口特征：$writeText$notifyText');
+        final BluetoothCharacteristic writeChr = characteristics.write!;
+        final String writeText =
+            '写 ${labeledUuid(writeChr.uuid, characteristicNameOf(writeChr.uuid))}'
+            '（${BleUartProfile.describeProperties(writeChr.properties)}）';
+        final String notifyText;
+        if (characteristics.canReceive) {
+          final BluetoothCharacteristic notifyChr = characteristics.notify!;
+          notifyText =
+              '，收 ${labeledUuid(notifyChr.uuid, characteristicNameOf(notifyChr.uuid))}'
+              '（${BleUartProfile.describeProperties(notifyChr.properties)}）';
+        } else {
+          notifyText = '，对端未开启通知';
+        }
+        addLog('串口特征：$writeText$notifyText');
       } else {
         setStatus('已连接 $name，但没找到可写入的特征，只能接收');
       }
     } catch (error, stack) {
       await _cleanup();
       setStatus('连接失败：$error');
-      addSystem('连接异常', stack: '$stack');
+      addLog('连接异常', stack: '$stack');
     } finally {
       setBusy(false);
     }
@@ -200,22 +207,23 @@ class BleSerialService extends SerialSession {
       0,
       (int sum, BluetoothService service) => sum + service.characteristics.length,
     );
-    addSystem('发现服务 ${services.length} 个、特征 $characteristicCount 条，'
+    addLog('发现服务 ${services.length} 个、特征 $characteristicCount 条，'
         'MTU ${device.mtuNow}');
 
     int lines = 0;
     for (final BluetoothService service in services) {
       if (lines >= _maxDiscoveryLines) {
-        addSystem('（服务和特征太多，剩下的没有逐条列出）');
+        addLog('（服务和特征太多，剩下的没有逐条列出）');
         return;
       }
-      addSystem('服务 ${formatUuid(service.uuid)}'
+      addLog('服务 ${labeledUuid(service.uuid, serviceNameOf(service.uuid))}'
           '${service.isPrimary ? '' : '（次要）'}');
       lines++;
       for (final BluetoothCharacteristic characteristic
           in service.characteristics) {
         if (lines >= _maxDiscoveryLines) break;
-        addSystem('  特征 ${formatUuid(characteristic.uuid)}'
+        addLog('  特征 '
+            '${labeledUuid(characteristic.uuid, characteristicNameOf(characteristic.uuid))}'
             '（${BleUartProfile.describeProperties(characteristic.properties)}，'
             'id ${characteristic.instanceId}）');
         lines++;
@@ -249,7 +257,8 @@ class BleSerialService extends SerialSession {
       LogLevel.info,
       LogKind.tx,
       logTag,
-      '写入 ${bytes.length} 字节 → 特征 ${formatUuid(characteristic.uuid)}，MTU $mtu，'
+      '写入 ${bytes.length} 字节 → 特征 '
+      '${labeledUuid(characteristic.uuid, characteristicNameOf(characteristic.uuid))}，MTU $mtu，'
       '每包 $chunkSize 字节共 $packets 包，'
       '${withoutResponse ? '无响应写' : '有响应写'}',
     );
@@ -287,7 +296,9 @@ class BleSerialService extends SerialSession {
     if (!isConnected) return;
     if (_writeCharacteristic == characteristic) return;
     _writeCharacteristic = characteristic;
-    addSystem('改用特征发送：${formatUuid(characteristic.uuid)}'
+    addSystem(
+        '改用特征发送：'
+        '${labeledUuid(characteristic.uuid, characteristicNameOf(characteristic.uuid))}'
         '（${BleUartProfile.describeProperties(characteristic.properties)}）');
     notifyListeners();
   }
@@ -304,7 +315,9 @@ class BleSerialService extends SerialSession {
       await _unsubscribeNotify();
       _notifyCharacteristic = characteristic;
       await _subscribeNotify();
-      addSystem('改用特征接收：${formatUuid(characteristic.uuid)}'
+      addSystem(
+          '改用特征接收：'
+          '${labeledUuid(characteristic.uuid, characteristicNameOf(characteristic.uuid))}'
           '（${BleUartProfile.describeProperties(characteristic.properties)}）');
     } catch (error, stack) {
       addSystem('切换接收特征失败：$error', stack: '$stack');
@@ -344,7 +357,7 @@ class BleSerialService extends SerialSession {
     for (final ScanResult result in results) {
       final String id = result.device.remoteId.toString();
       if (_loggedDeviceIds.add(id)) {
-        addSystem('发现设备：${displayNameOf(result)}（$id），'
+        addLog('发现设备：${displayNameOf(result)}（$id），'
             '信号 ${result.rssi} dBm');
       }
     }
@@ -364,7 +377,7 @@ class BleSerialService extends SerialSession {
       return;
     }
     if (!connected) {
-      addSystem('连接状态变化：$name → ${state.name}');
+      addLog('连接状态变化：$name → ${state.name}');
     }
   }
 

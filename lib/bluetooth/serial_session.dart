@@ -84,12 +84,22 @@ abstract class SerialSession extends ChangeNotifier {
   void setStatus(String value) {
     if (_disposed || _status == value) return;
     _status = value;
-    // 状态栏的每句话都记进控制台，事后能把整条流程还原出来
-    AppLog.instance.addSystem(logTag, value);
+    // 状态变化只进控制台日志，不往串口收发记录里塞提示行
+    addLog(value);
     notifyListeners();
   }
 
-  /// 往控制台追加一条系统提示，同时记进日志
+  /// 只写进控制台日志，不往串口收发记录里加提示行。
+  ///
+  /// 连接、扫描、发现服务这类过程信息都走这里，免得一进发送页就刷一屏提示。
+  @protected
+  void addLog(String text, {String? stack}) {
+    AppLog.instance.addSystem(logTag, text, stack: stack);
+  }
+
+  /// 往串口收发记录追加一条提示，同时记进日志。
+  ///
+  /// 只留给用户操作直接相关的消息（发送失败、格式不对等）。
   void addSystem(String text, {String? stack}) {
     AppLog.instance.addSystem(logTag, text, stack: stack);
     _append(SerialMessage.system(text));

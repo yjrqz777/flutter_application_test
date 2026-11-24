@@ -50,12 +50,12 @@ class ClassicSerialService extends SerialSession {
       setStatus(enabled
           ? '蓝牙已开启，点击「扫描设备」搜索附近的串口模块'
           : '蓝牙未开启，请先在系统设置里打开蓝牙');
-      addSystem('经典蓝牙初始化完成，蓝牙开关：${enabled ? '已开' : '未开'}');
+      addLog('经典蓝牙初始化完成，蓝牙开关：${enabled ? '已开' : '未开'}');
       await _loadPairedDevices();
     } catch (error, stack) {
       _supported = false;
       setStatus('初始化失败：${_errorText(error)}');
-      addSystem('经典蓝牙初始化异常', stack: '$stack');
+      addLog('经典蓝牙初始化异常', stack: '$stack');
     }
   }
 
@@ -78,14 +78,14 @@ class ClassicSerialService extends SerialSession {
     notifyListeners();
     setStatus('正在扫描附近设备…');
     _loggedAddresses.clear();
-    addSystem('开始扫描经典蓝牙设备');
+    addLog('开始扫描经典蓝牙设备');
     try {
       await _bluetooth.startDiscovery();
     } catch (error, stack) {
       _scanning = false;
       notifyListeners();
       setStatus('扫描失败：${_errorText(error)}');
-      addSystem('扫描异常', stack: '$stack');
+      addLog('扫描异常', stack: '$stack');
     }
   }
 
@@ -111,7 +111,7 @@ class ClassicSerialService extends SerialSession {
     try {
       await stopScan();
       setStatus('正在连接 ${device.displayName}…');
-      addSystem('开始连接：${device.displayName}（${device.address}）');
+      addLog('开始连接：${device.displayName}（${device.address}）');
       final BtcConnection connection =
           await _bluetooth.connect(address: device.address);
 
@@ -128,7 +128,7 @@ class ClassicSerialService extends SerialSession {
     } catch (error, stack) {
       await _cleanup(silent: true);
       setStatus('连接失败：${_errorText(error)}');
-      addSystem('连接异常', stack: '$stack');
+      addLog('连接异常', stack: '$stack');
     } finally {
       setBusy(false);
     }
@@ -155,17 +155,17 @@ class ClassicSerialService extends SerialSession {
       for (final BtcDevice device in paired) {
         _mergeDevice(device);
       }
-      addSystem('读取到 ${paired.length} 台已配对设备');
+      addLog('读取到 ${paired.length} 台已配对设备');
       notifyListeners();
     } catch (error, stack) {
-      addSystem('读取已配对设备失败：${_errorText(error)}', stack: '$stack');
+      addLog('读取已配对设备失败：${_errorText(error)}', stack: '$stack');
     }
   }
 
   void _onDeviceFound(BtcDevice device) {
     _mergeDevice(device);
     if (_loggedAddresses.add(device.address)) {
-      addSystem('发现设备：${device.displayName}（${device.address}）');
+      addLog('发现设备：${device.displayName}（${device.address}）');
     }
     notifyListeners();
   }
@@ -189,7 +189,6 @@ class ClassicSerialService extends SerialSession {
     _stateSub = null;
     setConnected(false);
     setStatus('连接已断开（$name）');
-    addSystem('设备断开：$name');
   }
 
   /// 释放连接相关的资源；silent 为 true 时不动状态文案。

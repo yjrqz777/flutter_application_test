@@ -74,7 +74,10 @@ class BleCharacteristicPage extends StatelessWidget {
               ),
               const SizedBox(height: 2),
               SelectableText(
-                formatUuid(bluetoothService.uuid),
+                labeledUuid(
+                  bluetoothService.uuid,
+                  serviceNameOf(bluetoothService.uuid),
+                ),
                 style: theme.textTheme.bodySmall
                     ?.copyWith(fontFamily: 'monospace'),
               ),
@@ -103,16 +106,23 @@ class BleCharacteristicPage extends StatelessWidget {
     final bool canReceive = properties.notify || properties.indicate;
     final bool usable = service.isConnected && !service.isBusy;
 
+    final String? name = characteristicNameOf(characteristic.uuid);
+    final String propertiesText = BleUartProfile.describeProperties(properties);
+
     return ListTile(
       dense: true,
       title: SelectableText(
-        formatUuid(characteristic.uuid),
-        style: theme.textTheme.bodySmall?.copyWith(fontFamily: 'monospace'),
+        name ?? formatUuid(characteristic.uuid),
+        style: name == null
+            ? theme.textTheme.bodySmall?.copyWith(fontFamily: 'monospace')
+            : theme.textTheme.bodyMedium,
       ),
       subtitle: Padding(
         padding: const EdgeInsets.only(top: 2),
         child: Text(
-          BleUartProfile.describeProperties(properties),
+          name == null
+              ? propertiesText
+              : '${formatUuid(characteristic.uuid)} · $propertiesText',
           style: theme.textTheme.bodySmall
               ?.copyWith(color: theme.colorScheme.outline),
         ),

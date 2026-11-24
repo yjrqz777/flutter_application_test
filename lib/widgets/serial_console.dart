@@ -86,51 +86,65 @@ class _SerialConsoleState extends State<SerialConsole> {
 
   Widget _buildToolbar(BuildContext context) {
     final ThemeData theme = Theme.of(context);
-    return Column(
-      children: <Widget>[
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 4, 4, 4),
-          child: Row(
-            children: <Widget>[
-              Text('收发记录', style: theme.textTheme.labelLarge),
-              const SizedBox(width: 8),
-              Text(
-                '${widget.messages.length} 条',
-                style: theme.textTheme.bodySmall,
-              ),
-              const Spacer(),
-              if (widget.onOpenCharacteristics != null)
-                IconButton(
-                  icon: const Icon(Icons.account_tree_outlined),
-                  tooltip: '服务与特征',
-                  onPressed: widget.onOpenCharacteristics,
+    return Container(
+      // 上下留一样的白：最高的控件也不会贴到旁边的文字和下面的分隔线
+      padding: const EdgeInsets.fromLTRB(12, 6, 4, 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: <Widget>[
+          // 左侧两行文字贴在一起，右侧控件按整行高度垂直居中
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Row(
+                  children: <Widget>[
+                    Text('收发记录', style: theme.textTheme.labelLarge),
+                    const SizedBox(width: 6),
+                    Text(
+                      '${widget.messages.length} 条',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ],
                 ),
-              Text('HEX', style: theme.textTheme.bodySmall),
-              Switch(
-                value: _hexMode,
-                onChanged: (bool value) => setState(() => _hexMode = value),
-              ),
-              IconButton(
-                icon: const Icon(Icons.delete_outline),
-                tooltip: '清空记录',
-                onPressed: widget.onClear,
-              ),
-            ],
-          ),
-        ),
-        if (widget.settings.showByteCount)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                '发送 ${widget.txBytes} 字节 · 接收 ${widget.rxBytes} 字节',
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: theme.colorScheme.primary),
-              ),
+                if (widget.settings.showByteCount)
+                  Text(
+                    '发送 ${widget.txBytes} 字节 · 接收 ${widget.rxBytes} 字节',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.primary,
+                    ),
+                  ),
+              ],
             ),
           ),
-      ],
+          if (widget.onOpenCharacteristics != null)
+            IconButton(
+              icon: const Icon(Icons.account_tree_outlined, size: 20),
+              tooltip: '服务与特征',
+              visualDensity: VisualDensity.compact,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+              onPressed: widget.onOpenCharacteristics,
+            ),
+          const SizedBox(width: 4),
+          Text('HEX', style: theme.textTheme.bodySmall),
+          const SizedBox(width: 2),
+          Switch(
+            value: _hexMode,
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            onChanged: (bool value) => setState(() => _hexMode = value),
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete_outline, size: 20),
+            tooltip: '清空记录',
+            visualDensity: VisualDensity.compact,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+            onPressed: widget.onClear,
+          ),
+        ],
+      ),
     );
   }
 
